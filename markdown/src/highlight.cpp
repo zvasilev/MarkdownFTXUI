@@ -1,4 +1,5 @@
 #include "markdown/highlight.hpp"
+#include "markdown/text_utils.hpp"
 
 #include <algorithm>
 #include <string>
@@ -35,15 +36,8 @@ bool is_syntax_at(std::string_view line, size_t pos, size_t marker_end) {
     return pos < marker_end || is_inline_syntax(line[pos]);
 }
 
-// Return the byte length of the UTF-8 character starting at the given byte.
-size_t utf8_glyph_len(char leading_byte) {
-    auto b = static_cast<unsigned char>(leading_byte);
-    if (b < 0x80) return 1;
-    if (b < 0xC0) return 1; // continuation byte (shouldn't be leading)
-    if (b < 0xE0) return 2;
-    if (b < 0xF0) return 3;
-    return 4;
-}
+// Alias for the shared UTF-8 utility in the anonymous namespace.
+size_t utf8_glyph_len(char c) { return utf8_byte_length(c); }
 
 // Highlight a single line, returning an Element
 ftxui::Element highlight_line(std::string_view line) {
@@ -198,12 +192,9 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
     }
 
     // Compute line number gutter width
-    int gutter_width = 0;
-    if (show_line_numbers) {
-        int total = static_cast<int>(lines.size());
-        gutter_width = 1;
-        while (total >= 10) { ++gutter_width; total /= 10; }
-    }
+    int gw = show_line_numbers
+        ? markdown::gutter_width(static_cast<int>(lines.size()))
+        : 0;
     auto gutter_style = ftxui::dim;
 
     ftxui::Elements elements;
@@ -218,7 +209,7 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
         if (show_line_numbers) {
             std::string num = std::to_string(i + 1);
             // Right-align the number
-            while (static_cast<int>(num.size()) < gutter_width) {
+            while (static_cast<int>(num.size()) < gw) {
                 num = " " + num;
             }
             num += " \u2502 ";

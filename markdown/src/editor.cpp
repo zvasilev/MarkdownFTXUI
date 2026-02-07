@@ -1,5 +1,6 @@
 #include "markdown/editor.hpp"
 #include "markdown/highlight.hpp"
+#include "markdown/text_utils.hpp"
 
 #include <algorithm>
 #include <sstream>
@@ -39,7 +40,9 @@ void Editor::update_cursor_info() {
             : static_cast<int>(nl - start);
         if (remaining <= line_len) {
             _cursor_line = line_num;
-            _cursor_col = remaining + 1;
+            // Count UTF-8 characters (not bytes) for the column
+            _cursor_col = utf8_char_count(std::string_view(
+                _content.data() + start, remaining)) + 1;
             break;
         }
         remaining -= line_len + 1;
@@ -134,22 +137,23 @@ ftxui::Component Editor::component() {
         while (std::getline(iss, line)) lines.push_back(line);
         if (lines.empty()) lines.push_back("");
 
-        // Compute gutter width to offset click_x
-        int total = static_cast<int>(lines.size());
-        int gutter_width = 1;
-        while (total >= 10) { ++gutter_width; total /= 10; }
-        int gutter_chars = gutter_width + 3; // " N │ "
-        click_x -= gutter_chars;
+        // Subtract gutter columns from click_x
+        click_x -= gutter_chars(static_cast<int>(lines.size()));
         click_x = std::max(0, click_x);
 
         click_y = std::clamp(click_y, 0, static_cast<int>(lines.size()) - 1);
-        click_x = std::clamp(click_x, 0, static_cast<int>(lines[click_y].size()));
+        // click_x is a visual column — clamp to character count, not byte count
+        int max_col = utf8_char_count(lines[click_y]);
+        click_x = std::clamp(click_x, 0, max_col);
+
+        // Convert visual column to byte offset within the line
+        size_t byte_x = utf8_char_to_byte(lines[click_y], click_x);
 
         int pos = 0;
         for (int i = 0; i < click_y; ++i) {
             pos += static_cast<int>(lines[i].size()) + 1;
         }
-        pos += click_x;
+        pos += static_cast<int>(byte_x);
         _cursor_pos = std::min(pos, static_cast<int>(_content.size()));
 
         return true;
