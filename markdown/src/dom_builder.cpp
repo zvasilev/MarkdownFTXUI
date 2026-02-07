@@ -37,6 +37,16 @@ ftxui::Element build_node(ASTNode const& node) {
         }
         return ftxui::vbox(std::move(children));
     }
+    case NodeType::Heading: {
+        auto content = build_inline_container(node);
+        if (node.level == 1) {
+            return content | ftxui::bold;
+        } else if (node.level == 2) {
+            return content | ftxui::bold;
+        } else {
+            return content | ftxui::bold | ftxui::dim;
+        }
+    }
     case NodeType::Paragraph:
         return build_inline_container(node);
     case NodeType::Text:
