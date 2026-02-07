@@ -33,3 +33,7 @@ add_test(NAME test_links COMMAND test_links)
 add_executable(test_lists test_lists.cpp)
 target_link_libraries(test_lists PRIVATE markdown-ui)
 add_test(NAME test_lists COMMAND test_lists)
+
+add_executable(test_code test_code.cpp)
+target_link_libraries(test_code PRIVATE markdown-ui)
+add_test(NAME test_code COMMAND test_code)

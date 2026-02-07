@@ -70,6 +70,8 @@ ftxui::Element build_node(ASTNode const& node) {
             content,
         });
     }
+    case NodeType::CodeInline:
+        return ftxui::text(node.text) | ftxui::inverted;
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:

@@ -16,7 +16,7 @@ int main() {
         "This is **bold**, *italic*, and ***bold italic***.\n\n"
         "### Todo List\n\n"
         "- Write *code*\n"
-        "- Review **tests**\n"
+        "- Review `tests` carefully\n"
         "- Read [docs](https://example.com)\n";
 
     auto parser = markdown::make_cmark_parser();
