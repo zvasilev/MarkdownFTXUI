@@ -18,10 +18,10 @@ struct LinkTarget {
 class DomBuilder {
 public:
     ftxui::Element build(MarkdownAST const& ast);
-    std::list<LinkTarget> const& link_targets() const { return link_targets_; }
+    std::list<LinkTarget> const& link_targets() const { return _link_targets; }
 
 private:
-    std::list<LinkTarget> link_targets_;
+    std::list<LinkTarget> _link_targets;
 };
 
 } // namespace markdown

@@ -17,20 +17,20 @@ public:
     std::string const& content() const;
     void set_content(std::string text);
 
-    int cursor_line() const { return cursor_line_; }
-    int cursor_col() const { return cursor_col_; }
-    int total_lines() const { return total_lines_; }
+    int cursor_line() const { return _cursor_line; }
+    int cursor_col() const { return _cursor_col; }
+    int total_lines() const { return _total_lines; }
 
 private:
     void update_cursor_info();
 
-    std::string content_;
-    int cursor_pos_ = 0;
-    int cursor_line_ = 1;
-    int cursor_col_ = 1;
-    int total_lines_ = 1;
-    ftxui::Box editor_box_;
-    ftxui::Component component_;
+    std::string _content;
+    int _cursor_pos = 0;
+    int _cursor_line = 1;
+    int _cursor_col = 1;
+    int _total_lines = 1;
+    ftxui::Box _editor_box;
+    ftxui::Component _component;
 };
 
 } // namespace markdown

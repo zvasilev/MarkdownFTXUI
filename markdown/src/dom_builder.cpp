@@ -259,8 +259,8 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links) {
 } // namespace
 
 ftxui::Element DomBuilder::build(MarkdownAST const& ast) {
-    link_targets_.clear();
-    return build_node(ast, 0, link_targets_);
+    _link_targets.clear();
+    return build_node(ast, 0, _link_targets);
 }
 
 } // namespace markdown

@@ -25,15 +25,15 @@ public:
     ftxui::Component component();
 
 private:
-    std::unique_ptr<MarkdownParser> parser_;
-    DomBuilder builder_;
-    std::string content_;
-    std::string last_parsed_;
-    ftxui::Element cached_element_ = ftxui::text("");
-    float scroll_ratio_ = 0.0f;
-    bool show_scrollbar_ = true;
-    std::function<void(std::string const&)> link_callback_;
-    ftxui::Component component_;
+    std::unique_ptr<MarkdownParser> _parser;
+    DomBuilder _builder;
+    std::string _content;
+    std::string _last_parsed;
+    ftxui::Element _cached_element = ftxui::text("");
+    float _scroll_ratio = 0.0f;
+    bool _show_scrollbar = true;
+    std::function<void(std::string const&)> _link_callback;
+    ftxui::Component _component;
 };
 
 } // namespace markdown

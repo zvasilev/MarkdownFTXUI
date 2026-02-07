@@ -13,81 +13,81 @@ namespace markdown {
 Editor::Editor() = default;
 
 std::string const& Editor::content() const {
-    return content_;
+    return _content;
 }
 
 void Editor::set_content(std::string text) {
-    content_ = std::move(text);
+    _content = std::move(text);
 }
 
 void Editor::update_cursor_info() {
-    total_lines_ = 1;
-    for (char c : content_) {
-        if (c == '\n') ++total_lines_;
+    _total_lines = 1;
+    for (char c : _content) {
+        if (c == '\n') ++_total_lines;
     }
 
-    int remaining = std::min(cursor_pos_,
-                             static_cast<int>(content_.size()));
+    int remaining = std::min(_cursor_pos,
+                             static_cast<int>(_content.size()));
     size_t start = 0;
     int line_num = 1;
-    cursor_line_ = 1;
-    cursor_col_ = 1;
-    while (start < content_.size()) {
-        auto nl = content_.find('\n', start);
+    _cursor_line = 1;
+    _cursor_col = 1;
+    while (start < _content.size()) {
+        auto nl = _content.find('\n', start);
         int line_len = (nl == std::string::npos)
-            ? static_cast<int>(content_.size() - start)
+            ? static_cast<int>(_content.size() - start)
             : static_cast<int>(nl - start);
         if (remaining <= line_len) {
-            cursor_line_ = line_num;
-            cursor_col_ = remaining + 1;
+            _cursor_line = line_num;
+            _cursor_col = remaining + 1;
             break;
         }
         remaining -= line_len + 1;
-        start = (nl == std::string::npos) ? content_.size() : nl + 1;
+        start = (nl == std::string::npos) ? _content.size() : nl + 1;
         ++line_num;
-        if (start >= content_.size()) {
-            cursor_line_ = line_num;
-            cursor_col_ = 1;
+        if (start >= _content.size()) {
+            _cursor_line = line_num;
+            _cursor_col = 1;
         }
     }
 }
 
 ftxui::Component Editor::component() {
-    if (component_) return component_;
+    if (_component) return _component;
 
     auto input_option = ftxui::InputOption();
     input_option.multiline = true;
-    input_option.cursor_position = &cursor_pos_;
+    input_option.cursor_position = &_cursor_pos;
     input_option.transform = [this](ftxui::InputState state) {
         if (state.is_placeholder) return state.element;
         update_cursor_info();
         auto element = highlight_markdown_with_cursor(
-            content_, cursor_pos_, state.focused, state.hovered, true);
-        return element | ftxui::reflect(editor_box_);
+            _content, _cursor_pos, state.focused, state.hovered, true);
+        return element | ftxui::reflect(_editor_box);
     };
-    auto input = ftxui::Input(&content_, input_option);
+    auto input = ftxui::Input(&_content, input_option);
 
     // Intercept left-press mouse clicks to fix cursor positioning
     // (Input's internal cursor_box_ is lost when transform replaces the element).
-    component_ = ftxui::CatchEvent(input, [this, input](ftxui::Event event) {
+    _component = ftxui::CatchEvent(input, [this, input](ftxui::Event event) {
         if (!event.is_mouse()) return false;
 
         auto& mouse = event.mouse();
 
         if (mouse.button != ftxui::Mouse::Left ||
             mouse.motion != ftxui::Mouse::Pressed ||
-            !editor_box_.Contain(mouse.x, mouse.y)) {
+            !_editor_box.Contain(mouse.x, mouse.y)) {
             return false;
         }
 
         input->TakeFocus();
 
-        int click_y = mouse.y - editor_box_.y_min;
-        int click_x = mouse.x - editor_box_.x_min;
+        int click_y = mouse.y - _editor_box.y_min;
+        int click_x = mouse.x - _editor_box.x_min;
 
         // Split document into lines
         std::vector<std::string> lines;
-        std::istringstream iss(content_);
+        std::istringstream iss(_content);
         std::string line;
         while (std::getline(iss, line)) lines.push_back(line);
         if (lines.empty()) lines.push_back("");
@@ -108,12 +108,12 @@ ftxui::Component Editor::component() {
             pos += static_cast<int>(lines[i].size()) + 1;
         }
         pos += click_x;
-        cursor_pos_ = std::min(pos, static_cast<int>(content_.size()));
+        _cursor_pos = std::min(pos, static_cast<int>(_content.size()));
 
         return true;
     });
 
-    return component_;
+    return _component;
 }
 
 } // namespace markdown
