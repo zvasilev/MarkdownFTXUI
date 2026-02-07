@@ -2,6 +2,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/box.hpp>
@@ -12,7 +13,7 @@
 namespace markdown {
 
 struct LinkTarget {
-    ftxui::Box box{};
+    std::vector<ftxui::Box> boxes;
     std::string url;
 };
 

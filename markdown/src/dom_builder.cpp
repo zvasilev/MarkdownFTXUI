@@ -87,27 +87,17 @@ void collect_inline_words(ASTNode const& node, int depth,
             size_t before = words.size();
             collect_inline_words(child, depth, words,
                                  ls, links, focused_link, theme);
-            // Wrap each word of this link with reflect for click detection
+            // Wrap every word of this link with reflect for click detection
             links.emplace_back(LinkTarget{.url = child.url});
             auto& target = links.back();
-            // Gather link words into a sub-hbox with reflect
-            ftxui::Elements link_words;
+            size_t word_count = words.size() - before;
+            target.boxes.resize(word_count);
+            bool first_word = true;
             for (size_t i = before; i < words.size(); ++i) {
-                link_words.push_back(std::move(words[i]));
-            }
-            words.resize(before);
-            if (link_words.size() == 1) {
-                auto el = std::move(link_words[0])
-                    | ftxui::reflect(target.box);
-                if (is_focused) el = el | ftxui::focus;
-                words.push_back(std::move(el));
-            } else if (!link_words.empty()) {
-                // Keep words separate for flexbox wrapping but reflect the
-                // first word so we have at least one clickable region
-                link_words[0] = link_words[0] | ftxui::reflect(target.box);
-                if (is_focused) link_words[0] = link_words[0] | ftxui::focus;
-                for (auto& w : link_words) {
-                    words.push_back(std::move(w));
+                words[i] = words[i] | ftxui::reflect(target.boxes[i - before]);
+                if (is_focused && first_word) {
+                    words[i] = words[i] | ftxui::focus;
+                    first_word = false;
                 }
             }
             break;
@@ -215,7 +205,8 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
             | link_style(is_focused, ftxui::nothing, theme);
         if (is_focused) el = el | ftxui::focus;
         links.emplace_back(LinkTarget{.url = node.url});
-        return el | ftxui::reflect(links.back().box);
+        links.back().boxes.emplace_back();
+        return el | ftxui::reflect(links.back().boxes.back());
     }
     case NodeType::BulletList: {
         ftxui::Elements items;

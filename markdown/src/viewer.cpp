@@ -164,11 +164,13 @@ ftxui::Component Viewer::component() {
             return false;
         }
         for (auto const& link : _builder.link_targets()) {
-            if (link.box.Contain(mouse.x, mouse.y)) {
-                if (_link_callback) {
-                    _link_callback(link.url, LinkEvent::Press);
+            for (auto const& box : link.boxes) {
+                if (box.Contain(mouse.x, mouse.y)) {
+                    if (_link_callback) {
+                        _link_callback(link.url, LinkEvent::Press);
+                    }
+                    return true;
                 }
-                return true;
             }
         }
         return false;
