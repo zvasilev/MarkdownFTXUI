@@ -27,7 +27,7 @@ public:
 
     void set_cursor_position(int byte_offset);
     void set_cursor(int line, int col);
-    void set_theme(Theme const& theme) { _theme = &theme; }
+    void set_theme(Theme const& theme) { _theme = theme; }
 
 private:
     void update_cursor_info();
@@ -38,7 +38,7 @@ private:
     int _cursor_col = 1;
     int _total_lines = 1;
     bool _active = false;
-    Theme const* _theme = &theme_default();
+    Theme _theme{theme_default()};
     ftxui::Box _editor_box;
     ftxui::Component _component;
 };

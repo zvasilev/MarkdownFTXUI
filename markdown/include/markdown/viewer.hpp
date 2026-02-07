@@ -24,7 +24,7 @@ public:
     void show_scrollbar(bool show);
     void on_link_click(
         std::function<void(std::string const&, LinkEvent)> callback);
-    void set_theme(Theme const& theme) { _theme = &theme; }
+    void set_theme(Theme const& theme) { _theme = theme; ++_theme_gen; }
 
     ftxui::Component component();
     bool active() const { return _active; }
@@ -43,8 +43,9 @@ private:
     bool _active = false;
     int _focused_link = -1;
     int _last_focused_link = -1;
-    Theme const* _theme = &theme_default();
-    Theme const* _last_theme = nullptr;
+    Theme _theme{theme_default()};
+    uint64_t _theme_gen = 0;
+    uint64_t _built_theme_gen = 0;
     std::function<void(std::string const&, LinkEvent)> _link_callback;
     ftxui::Component _component;
 };

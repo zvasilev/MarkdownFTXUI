@@ -139,12 +139,12 @@ ftxui::Component Viewer::component() {
         // Rebuild element when content, focused link, or theme changes
         if (_parsed_gen != _built_gen ||
             _focused_link != _last_focused_link ||
-            _theme != _last_theme) {
+            _theme_gen != _built_theme_gen) {
             _cached_element = _builder.build(_cached_ast, _focused_link,
-                                             *_theme);
+                                             _theme);
             _built_gen = _parsed_gen;
             _last_focused_link = _focused_link;
-            _last_theme = _theme;
+            _built_theme_gen = _theme_gen;
         }
         auto el = _cached_element;
         // When a link is focused, ftxui::focus on it handles scrolling via
