@@ -105,7 +105,7 @@ ftxui::Component make_email_screen(
             auto combined = ftxui::vbox(std::move(header_rows))
                 | ftxui::vscroll_indicator;
             if (!viewer->is_link_focused()) {
-                combined = demo::direct_scroll(std::move(combined),
+                combined = markdown::direct_scroll(std::move(combined),
                                                viewer->scroll());
             } else {
                 // Link focused: yframe scrolls to the ftxui::focus element
