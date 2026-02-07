@@ -1,6 +1,7 @@
 #include "markdown/viewer.hpp"
 
 #include <algorithm>
+#include <iterator>
 
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/mouse.hpp>
@@ -23,20 +24,28 @@ void Viewer::show_scrollbar(bool show) {
 }
 
 void Viewer::on_link_click(
-    std::function<void(std::string const&)> callback) {
+    std::function<void(std::string const&, bool)> callback) {
     _link_callback = std::move(callback);
 }
 
-// Selectable wrapper with built-in scroll for the viewer.
-// When selected: ArrowUp/Down scroll, Esc deselects, other keys unhandled.
-// When not selected: all keyboard unhandled → container navigates.
+// Selectable wrapper with built-in scroll and link navigation for the viewer.
+// When selected: Tab/Shift+Tab cycle links, Enter presses focused link,
+// ArrowUp/Down scroll, Esc deselects.
+// When not selected: all keyboard unhandled -> container navigates.
 namespace {
 class SelectableViewer : public ftxui::ComponentBase {
     bool& _selected;
     float& _scroll_ratio;
+    int& _focused_link;
+    DomBuilder& _builder;
+    std::function<void(std::string const&, bool)>& _link_callback;
 public:
-    SelectableViewer(ftxui::Component child, bool& selected, float& scroll)
-        : _selected(selected), _scroll_ratio(scroll) {
+    SelectableViewer(ftxui::Component child, bool& selected, float& scroll,
+                     int& focused_link, DomBuilder& builder,
+                     std::function<void(std::string const&, bool)>& link_cb)
+        : _selected(selected), _scroll_ratio(scroll),
+          _focused_link(focused_link), _builder(builder),
+          _link_callback(link_cb) {
         Add(std::move(child));
     }
 
@@ -54,7 +63,41 @@ public:
         if (_selected) {
             if (event == ftxui::Event::Escape) {
                 _selected = false;
+                _focused_link = -1;
                 return true;
+            }
+            // Tab cycles forward through links
+            if (event == ftxui::Event::Tab) {
+                int count = static_cast<int>(
+                    _builder.link_targets().size());
+                if (count > 0) {
+                    _focused_link = (_focused_link + 1) % count;
+                    notify_link_focus();
+                }
+                return true;
+            }
+            // Shift+Tab cycles backward through links
+            if (event == ftxui::Event::TabReverse) {
+                int count = static_cast<int>(
+                    _builder.link_targets().size());
+                if (count > 0) {
+                    _focused_link =
+                        (_focused_link - 1 + count) % count;
+                    notify_link_focus();
+                }
+                return true;
+            }
+            // Enter presses the focused link
+            if (event == ftxui::Event::Return) {
+                if (_focused_link >= 0) {
+                    auto it = _builder.link_targets().begin();
+                    std::advance(it, _focused_link);
+                    if (_link_callback) {
+                        _link_callback(it->url, true);
+                    }
+                    return true;
+                }
+                return false;
             }
             // Arrow up/down scroll the viewer
             if (event == ftxui::Event::ArrowUp) {
@@ -65,10 +108,7 @@ public:
                 _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
                 return true;
             }
-            if (event == ftxui::Event::Tab || event == ftxui::Event::TabReverse) {
-                return true; // consume Tab while selected
-            }
-            // Everything else (including left/right) → unhandled → navigate
+            // Everything else (including left/right) -> unhandled -> navigate
             return false;
         }
         if (event == ftxui::Event::Return) {
@@ -77,6 +117,16 @@ public:
         }
         return false;
     }
+
+private:
+    void notify_link_focus() {
+        if (_focused_link < 0) return;
+        auto it = _builder.link_targets().begin();
+        std::advance(it, _focused_link);
+        if (_link_callback) {
+            _link_callback(it->url, false);
+        }
+    }
 };
 } // namespace
 
@@ -84,13 +134,24 @@ ftxui::Component Viewer::component() {
     if (_component) return _component;
 
     auto renderer = ftxui::Renderer([this] {
+        // Parse only when content changes
         if (_content != _last_parsed) {
-            auto ast = _parser->parse(_content);
-            _cached_element = _builder.build(ast);
+            _cached_ast = _parser->parse(_content);
             _last_parsed = _content;
         }
-        auto el = _cached_element
-            | ftxui::focusPositionRelative(0.0f, _scroll_ratio);
+        // Rebuild element when content or focused link changes
+        if (_content != _last_built ||
+            _focused_link != _last_focused_link) {
+            _cached_element = _builder.build(_cached_ast, _focused_link);
+            _last_built = _content;
+            _last_focused_link = _focused_link;
+        }
+        auto el = _cached_element;
+        // When a link is focused, ftxui::focus on it handles scrolling via
+        // yframe. Otherwise use the manual scroll ratio.
+        if (_focused_link < 0) {
+            el = el | ftxui::focusPositionRelative(0.0f, _scroll_ratio);
+        }
         if (_show_scrollbar) el = el | ftxui::vscroll_indicator;
         return el | ftxui::yframe | ftxui::flex;
     });
@@ -105,7 +166,7 @@ ftxui::Component Viewer::component() {
         for (auto const& link : _builder.link_targets()) {
             if (link.box.Contain(mouse.x, mouse.y)) {
                 if (_link_callback) {
-                    _link_callback(link.url);
+                    _link_callback(link.url, true);
                 }
                 return true;
             }
@@ -113,9 +174,10 @@ ftxui::Component Viewer::component() {
         return false;
     });
 
-    // Wrap with selectable + scroll behavior
+    // Wrap with selectable + scroll + link navigation behavior
     _component = std::make_shared<SelectableViewer>(
-        inner, _selected, _scroll_ratio);
+        inner, _selected, _scroll_ratio, _focused_link,
+        _builder, _link_callback);
     return _component;
 }
 

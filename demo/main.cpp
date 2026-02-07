@@ -81,15 +81,19 @@ int main() {
         "  - Carrots\n"
         "  - Peas\n\n"
         "---\n\n"
-        "That's all for now. Happy editing!\n"
+        "That's all for now. Happy editing!\n\n"
+        "## More Resources\n\n"
+        "- Check [Markdown Guide](https://www.markdownguide.org) for syntax help\n"
+        "- See [FTXUI examples](https://github.com/ArthurSonique/FTXUI/tree/main/examples) for UI patterns\n"
     );
     auto editor_comp = editor.component();
 
     // --- Viewer ---
     markdown::Viewer viewer(markdown::make_cmark_parser());
     std::string last_link_url;
-    viewer.on_link_click([&](std::string const& url) {
+    viewer.on_link_click([&](std::string const& url, bool pressed) {
         last_link_url = url;
+        (void)pressed;
     });
     auto viewer_comp = viewer.component();
 

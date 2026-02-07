@@ -17,7 +17,7 @@ struct LinkTarget {
 
 class DomBuilder {
 public:
-    ftxui::Element build(MarkdownAST const& ast);
+    ftxui::Element build(MarkdownAST const& ast, int focused_link = -1);
     std::list<LinkTarget> const& link_targets() const { return _link_targets; }
 
 private:

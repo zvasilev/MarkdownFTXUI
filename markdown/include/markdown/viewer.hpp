@@ -20,7 +20,7 @@ public:
     void set_content(std::string_view markdown_text);
     void set_scroll(float ratio);
     void show_scrollbar(bool show);
-    void on_link_click(std::function<void(std::string const&)> callback);
+    void on_link_click(std::function<void(std::string const&, bool)> callback);
 
     ftxui::Component component();
     bool selected() const { return _selected; }
@@ -30,11 +30,15 @@ private:
     DomBuilder _builder;
     std::string _content;
     std::string _last_parsed;
+    std::string _last_built;
+    MarkdownAST _cached_ast;
     ftxui::Element _cached_element = ftxui::text("");
     float _scroll_ratio = 0.0f;
     bool _show_scrollbar = true;
     bool _selected = false;
-    std::function<void(std::string const&)> _link_callback;
+    int _focused_link = -1;
+    int _last_focused_link = -1;
+    std::function<void(std::string const&, bool)> _link_callback;
     ftxui::Component _component;
 };
 
