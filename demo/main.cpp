@@ -65,6 +65,8 @@ int main() {
 
     int cursor_pos = 0;
     ftxui::Box editor_box;
+    ftxui::Box viewer_box;
+    std::string last_link_url;
 
     auto input_option = ftxui::InputOption();
     input_option.multiline = true;
@@ -186,15 +188,19 @@ int main() {
                 ftxui::separator(),
                 viewer_element | ftxui::focusPositionRelative(0.0f, scroll_ratio)
                                | ftxui::yframe | ftxui::flex,
-            }) | ftxui::border) | ftxui::flex;
+            }) | ftxui::border | ftxui::reflect(viewer_box)) | ftxui::flex;
 
         auto status_text = " Ln " + std::to_string(cur_line) +
                            ", Col " + std::to_string(cur_col) +
                            " | " + std::to_string(document_text.size()) + " chars ";
-        auto status_bar = ftxui::hbox({
-            ftxui::filler(),
-            ftxui::text(status_text) | ftxui::dim,
-        });
+        ftxui::Elements status_parts;
+        if (!last_link_url.empty()) {
+            status_parts.push_back(
+                ftxui::text(" " + last_link_url + " ") | ftxui::dim | ftxui::underlined);
+        }
+        status_parts.push_back(ftxui::filler());
+        status_parts.push_back(ftxui::text(status_text) | ftxui::dim);
+        auto status_bar = ftxui::hbox(std::move(status_parts));
 
         return ftxui::vbox({
             ftxui::hbox({
@@ -203,6 +209,28 @@ int main() {
             }) | ftxui::flex,
             status_bar,
         });
+    });
+
+    // Catch mouse clicks on viewer links
+    component = ftxui::CatchEvent(component, [&](ftxui::Event event) {
+        if (!event.is_mouse()) return false;
+        auto& mouse = event.mouse();
+        if (mouse.button != ftxui::Mouse::Left ||
+            mouse.motion != ftxui::Mouse::Pressed) {
+            return false;
+        }
+        if (!viewer_box.Contain(mouse.x, mouse.y)) {
+            return false;
+        }
+        // Check if click hit any link target
+        last_link_url.clear();
+        for (auto const& link : builder.link_targets()) {
+            if (link.box.Contain(mouse.x, mouse.y)) {
+                last_link_url = link.url;
+                break;
+            }
+        }
+        return false; // don't consume — let other handlers process too
     });
 
     // Catch Ctrl+C and Ctrl+Q to quit

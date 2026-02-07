@@ -1,14 +1,27 @@
 #pragma once
 
+#include <list>
+#include <string>
+
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/box.hpp>
 
 #include "markdown/ast.hpp"
 
 namespace markdown {
 
+struct LinkTarget {
+    ftxui::Box box{};
+    std::string url;
+};
+
 class DomBuilder {
 public:
     ftxui::Element build(MarkdownAST const& ast);
+    std::list<LinkTarget> const& link_targets() const { return link_targets_; }
+
+private:
+    std::list<LinkTarget> link_targets_;
 };
 
 } // namespace markdown
