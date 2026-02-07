@@ -84,7 +84,13 @@ int main() {
         "That's all for now. Happy editing!\n\n"
         "## More Resources\n\n"
         "- Check [Markdown Guide](https://www.markdownguide.org) for syntax help\n"
-        "- See [FTXUI examples](https://github.com/ArthurSonique/FTXUI/tree/main/examples) for UI patterns\n"
+        "- See [FTXUI examples](https://github.com/ArthurSonique/FTXUI/tree/main/examples) for UI patterns\n\n"
+        "## Unsupported Syntax\n\n"
+        "Strikethrough: ~~deleted text~~ should show tildes gracefully.\n\n"
+        "| Column A | Column B | Column C |\n"
+        "| -------- | -------- | -------- |\n"
+        "| Cell 1   | Cell 2   | Cell 3   |\n"
+        "| Cell 4   | Cell 5   | Cell 6   |\n"
     );
     auto editor_comp = editor.component();
 
