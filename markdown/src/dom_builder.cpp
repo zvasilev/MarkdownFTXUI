@@ -55,6 +55,21 @@ ftxui::Element build_node(ASTNode const& node) {
         return build_inline_container(node) | ftxui::italic;
     case NodeType::Link:
         return build_inline_container(node) | ftxui::underlined;
+    case NodeType::BulletList: {
+        ftxui::Elements items;
+        for (auto const& child : node.children) {
+            items.push_back(build_node(child));
+        }
+        return ftxui::vbox(std::move(items));
+    }
+    case NodeType::ListItem: {
+        // ListItem contains Paragraph children; render inline with bullet prefix
+        auto content = build_inline_container(node);
+        return ftxui::hbox({
+            ftxui::text("  \u2022 "),
+            content,
+        });
+    }
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:

@@ -14,8 +14,10 @@ int main() {
     std::string document_text = "# Hello Markdown\n\n"
         "## Section One\n\n"
         "This is **bold**, *italic*, and ***bold italic***.\n\n"
-        "### Subsection\n\n"
-        "Read the [documentation](https://example.com) or a [**bold link**](url).\n";
+        "### Todo List\n\n"
+        "- Write *code*\n"
+        "- Review **tests**\n"
+        "- Read [docs](https://example.com)\n";
 
     auto parser = markdown::make_cmark_parser();
     markdown::DomBuilder builder;
