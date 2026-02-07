@@ -181,7 +181,15 @@ private:
         int link_n = static_cast<int>(_builder.link_targets().size());
         int total = ext_n + link_n;
         if (total == 0) return;
-        _focus_index = (_focus_index + direction + total) % total;
+        if (_focus_index < 0) {
+            _focus_index = (direction > 0) ? 0 : total - 1;
+        } else {
+            _focus_index = (_focus_index + direction + total) % total;
+        }
+        // Scroll to top when focusing an external so headers are visible.
+        if (_focus_index < ext_n) {
+            _scroll_ratio = 0.0f;
+        }
         notify_focus(LinkEvent::Focus);
     }
 

@@ -81,3 +81,7 @@ add_test(NAME test_theme COMMAND test_theme)
 add_executable(test_dom_focus test_dom_focus.cpp)
 target_link_libraries(test_dom_focus PRIVATE markdown-ui)
 add_test(NAME test_dom_focus COMMAND test_dom_focus)
+
+add_executable(test_external_focusable test_external_focusable.cpp)
+target_link_libraries(test_external_focusable PRIVATE markdown-ui)
+add_test(NAME test_external_focusable COMMAND test_external_focusable)
