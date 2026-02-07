@@ -32,7 +32,7 @@ ftxui::Component Viewer::component() {
         }
         return cached_element_
             | ftxui::focusPositionRelative(0.0f, scroll_ratio_)
-            | ftxui::yframe | ftxui::flex;
+            | ftxui::vscroll_indicator | ftxui::yframe | ftxui::flex;
     });
 
     component_ = ftxui::CatchEvent(renderer, [this](ftxui::Event event) {
