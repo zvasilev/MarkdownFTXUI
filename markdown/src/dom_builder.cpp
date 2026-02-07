@@ -51,6 +51,8 @@ ftxui::Element build_node(ASTNode const& node) {
         return build_inline_container(node);
     case NodeType::Strong:
         return build_inline_container(node) | ftxui::bold;
+    case NodeType::Emphasis:
+        return build_inline_container(node) | ftxui::italic;
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:

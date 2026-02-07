@@ -15,7 +15,7 @@ int main() {
         "## Section One\n\n"
         "This is a paragraph with **bold text** inside.\n\n"
         "### Subsection\n\n"
-        "**Fully bold** paragraph and normal text.\n";
+        "A *subtle* point and **strong** emphasis.\n";
 
     auto parser = markdown::make_cmark_parser();
     markdown::DomBuilder builder;
