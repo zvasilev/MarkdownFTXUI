@@ -114,11 +114,40 @@ void collect_inline_words(ASTNode const& node, int depth,
     }
 }
 
+// Check if a paragraph node contains only plain text (Text + SoftBreak).
+bool is_plain_text_paragraph(ASTNode const& node) {
+    for (auto const& child : node.children) {
+        if (child.type != NodeType::Text && child.type != NodeType::SoftBreak) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Wrapping version of build_inline_container for block-level paragraphs.
 // Splits all inline content into word-level flexbox items for line wrapping.
 ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
                                         Links& links, int focused_link,
                                         Theme const& theme) {
+    // Fast path: plain text paragraphs use ftxui::paragraph() directly,
+    // avoiding per-word flexbox overhead.
+    if (is_plain_text_paragraph(node)) {
+        std::string combined;
+        for (auto const& child : node.children) {
+            if (child.type == NodeType::Text) {
+                if (!combined.empty() && combined.back() != ' ') {
+                    combined += ' ';
+                }
+                combined += child.text;
+            } else if (child.type == NodeType::SoftBreak) {
+                if (!combined.empty() && combined.back() != ' ') {
+                    combined += ' ';
+                }
+            }
+        }
+        return ftxui::paragraph(combined);
+    }
+
     static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
     ftxui::Elements words;
     collect_inline_words(node, depth, words, ftxui::nothing, links,
