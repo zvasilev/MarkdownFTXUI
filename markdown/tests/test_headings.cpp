@@ -97,5 +97,39 @@ int main() {
         ASSERT_TRUE(!pixel.dim);
     }
 
+    // Test 8: H4 renders with heading3 style (bold + dim)
+    {
+        auto ast = parser->parse("#### H4 title");
+        ASSERT_EQ(ast.children[0].type, NodeType::Heading);
+        ASSERT_EQ(ast.children[0].level, 4);
+
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(1));
+        ftxui::Render(screen, element);
+        ASSERT_CONTAINS(screen.ToString(), "H4 title");
+        ASSERT_TRUE(screen.PixelAt(0, 0).bold);
+        ASSERT_TRUE(screen.PixelAt(0, 0).dim);
+    }
+
+    // Test 9: H5 and H6 also render with heading3 style
+    {
+        auto ast5 = parser->parse("##### H5");
+        auto el5 = builder.build(ast5);
+        auto scr5 = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                           ftxui::Dimension::Fixed(1));
+        ftxui::Render(scr5, el5);
+        ASSERT_TRUE(scr5.PixelAt(0, 0).bold);
+        ASSERT_TRUE(scr5.PixelAt(0, 0).dim);
+
+        auto ast6 = parser->parse("###### H6");
+        auto el6 = builder.build(ast6);
+        auto scr6 = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                           ftxui::Dimension::Fixed(1));
+        ftxui::Render(scr6, el6);
+        ASSERT_TRUE(scr6.PixelAt(0, 0).bold);
+        ASSERT_TRUE(scr6.PixelAt(0, 0).dim);
+    }
+
     return 0;
 }

@@ -57,3 +57,27 @@ add_test(NAME test_edge_cases COMMAND test_edge_cases)
 add_executable(test_unicode test_unicode.cpp)
 target_link_libraries(test_unicode PRIVATE markdown-ui)
 add_test(NAME test_unicode COMMAND test_unicode)
+
+add_executable(test_text_utils test_text_utils.cpp)
+target_link_libraries(test_text_utils PRIVATE markdown-ui)
+add_test(NAME test_text_utils COMMAND test_text_utils)
+
+add_executable(test_highlight_cursor test_highlight_cursor.cpp)
+target_link_libraries(test_highlight_cursor PRIVATE markdown-ui)
+add_test(NAME test_highlight_cursor COMMAND test_highlight_cursor)
+
+add_executable(test_editor test_editor.cpp)
+target_link_libraries(test_editor PRIVATE markdown-ui)
+add_test(NAME test_editor COMMAND test_editor)
+
+add_executable(test_viewer test_viewer.cpp)
+target_link_libraries(test_viewer PRIVATE markdown-ui)
+add_test(NAME test_viewer COMMAND test_viewer)
+
+add_executable(test_theme test_theme.cpp)
+target_link_libraries(test_theme PRIVATE markdown-ui)
+add_test(NAME test_theme COMMAND test_theme)
+
+add_executable(test_dom_focus test_dom_focus.cpp)
+target_link_libraries(test_dom_focus PRIVATE markdown-ui)
+add_test(NAME test_dom_focus COMMAND test_dom_focus)

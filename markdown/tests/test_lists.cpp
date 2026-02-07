@@ -110,5 +110,19 @@ int main() {
         ASSERT_EQ(ast.children[0].list_start, 3);
     }
 
+    // Test 10: Ordered list with start > 1 renders correct numbers
+    {
+        auto ast = parser->parse("3. alpha\n4. beta");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(2));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "3.");
+        ASSERT_CONTAINS(output, "alpha");
+        ASSERT_CONTAINS(output, "4.");
+        ASSERT_CONTAINS(output, "beta");
+    }
+
     return 0;
 }
