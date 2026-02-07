@@ -46,12 +46,6 @@ inline markdown::Theme const& get_theme(int index) {
     return markdown::theme_default();
 }
 
-// Minimal focusable component for wrapping renderers that need focus.
-class FocusableBase : public ftxui::ComponentBase {
-public:
-    bool Focusable() const override { return true; }
-};
-
 // Theme toggle bar.
 inline ftxui::Element theme_bar(ftxui::Component toggle) {
     return ftxui::hbox({
