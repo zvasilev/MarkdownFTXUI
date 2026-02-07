@@ -16,6 +16,10 @@ void Viewer::set_scroll(float ratio) {
     scroll_ratio_ = ratio;
 }
 
+void Viewer::show_scrollbar(bool show) {
+    show_scrollbar_ = show;
+}
+
 void Viewer::on_link_click(
     std::function<void(std::string const&)> callback) {
     link_callback_ = std::move(callback);
@@ -30,9 +34,10 @@ ftxui::Component Viewer::component() {
             cached_element_ = builder_.build(ast);
             last_parsed_ = content_;
         }
-        return cached_element_
-            | ftxui::focusPositionRelative(0.0f, scroll_ratio_)
-            | ftxui::vscroll_indicator | ftxui::yframe | ftxui::flex;
+        auto el = cached_element_
+            | ftxui::focusPositionRelative(0.0f, scroll_ratio_);
+        if (show_scrollbar_) el = el | ftxui::vscroll_indicator;
+        return el | ftxui::yframe | ftxui::flex;
     });
 
     component_ = ftxui::CatchEvent(renderer, [this](ftxui::Event event) {

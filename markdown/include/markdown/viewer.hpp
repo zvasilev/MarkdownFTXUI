@@ -19,6 +19,7 @@ public:
 
     void set_content(std::string_view markdown_text);
     void set_scroll(float ratio);
+    void show_scrollbar(bool show);
     void on_link_click(std::function<void(std::string const&)> callback);
 
     ftxui::Component component();
@@ -30,6 +31,7 @@ private:
     std::string last_parsed_;
     ftxui::Element cached_element_ = ftxui::text("");
     float scroll_ratio_ = 0.0f;
+    bool show_scrollbar_ = true;
     std::function<void(std::string const&)> link_callback_;
     ftxui::Component component_;
 };
