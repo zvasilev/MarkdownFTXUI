@@ -9,7 +9,7 @@
 #include <ftxui/dom/node.hpp>
 
 #include "markdown/parser.hpp"
-#include "markdown/dom_builder.hpp"
+#include "markdown/viewer.hpp"
 #include "markdown/highlight.hpp"
 
 namespace {
@@ -56,17 +56,16 @@ int main() {
         "---\n\n"
         "```\nint main() {\n    return 0;\n}\n```\n";
 
-    auto parser = markdown::make_cmark_parser();
-    markdown::DomBuilder builder;
-
-    // Track last content to avoid re-parsing when only cursor moves
-    std::string last_rendered;
-    ftxui::Element viewer_element = ftxui::text("");
+    // Viewer component — owns parser, DomBuilder, caching, link clicks
+    markdown::Viewer viewer(markdown::make_cmark_parser());
+    std::string last_link_url;
+    viewer.on_link_click([&](std::string const& url) {
+        last_link_url = url;
+    });
+    auto viewer_comp = viewer.component();
 
     int cursor_pos = 0;
     ftxui::Box editor_box;
-    ftxui::Box viewer_box;
-    std::string last_link_url;
 
     auto input_option = ftxui::InputOption();
     input_option.multiline = true;
@@ -128,13 +127,12 @@ int main() {
         return true;
     });
 
-    auto component = ftxui::Renderer(input_with_mouse, [&] {
-        // Only re-parse when content actually changes
-        if (document_text != last_rendered) {
-            auto ast = parser->parse(document_text);
-            viewer_element = builder.build(ast);
-            last_rendered = document_text;
-        }
+    // Both editor and viewer in the component tree so both receive events
+    auto both = ftxui::Container::Horizontal({input_with_mouse, viewer_comp});
+
+    auto component = ftxui::Renderer(both, [&] {
+        // Push content and scroll position to the viewer
+        viewer.set_content(document_text);
 
         // Compute cursor line/column (used by status bar and scroll sync)
         int cur_line = 1;
@@ -168,6 +166,14 @@ int main() {
             }
         }
 
+        // Proportional scroll sync
+        float scroll_ratio = 0.0f;
+        if (total_lines > 1) {
+            scroll_ratio = static_cast<float>(cur_line - 1) /
+                           static_cast<float>(total_lines - 1);
+        }
+        viewer.set_scroll(scroll_ratio);
+
         auto editor_pane = zero_min_width(
             ftxui::vbox({
                 ftxui::text(" Markdown Editor ") | ftxui::bold | ftxui::center,
@@ -175,20 +181,12 @@ int main() {
                 input_with_mouse->Render() | ftxui::flex | ftxui::frame,
             }) | ftxui::border) | ftxui::flex;
 
-        // Proportional scroll sync: scroll viewer to match editor cursor position
-        float scroll_ratio = 0.0f;
-        if (total_lines > 1) {
-            scroll_ratio = static_cast<float>(cur_line - 1) /
-                           static_cast<float>(total_lines - 1);
-        }
-
         auto viewer_pane = zero_min_width(
             ftxui::vbox({
                 ftxui::text(" Markdown Viewer ") | ftxui::bold | ftxui::center,
                 ftxui::separator(),
-                viewer_element | ftxui::focusPositionRelative(0.0f, scroll_ratio)
-                               | ftxui::yframe | ftxui::flex,
-            }) | ftxui::border | ftxui::reflect(viewer_box)) | ftxui::flex;
+                viewer_comp->Render(),
+            }) | ftxui::border) | ftxui::flex;
 
         auto status_text = " Ln " + std::to_string(cur_line) +
                            ", Col " + std::to_string(cur_col) +
@@ -209,28 +207,6 @@ int main() {
             }) | ftxui::flex,
             status_bar,
         });
-    });
-
-    // Catch mouse clicks on viewer links
-    component = ftxui::CatchEvent(component, [&](ftxui::Event event) {
-        if (!event.is_mouse()) return false;
-        auto& mouse = event.mouse();
-        if (mouse.button != ftxui::Mouse::Left ||
-            mouse.motion != ftxui::Mouse::Pressed) {
-            return false;
-        }
-        if (!viewer_box.Contain(mouse.x, mouse.y)) {
-            return false;
-        }
-        // Check if click hit any link target
-        last_link_url.clear();
-        for (auto const& link : builder.link_targets()) {
-            if (link.box.Contain(mouse.x, mouse.y)) {
-                last_link_url = link.url;
-                break;
-            }
-        }
-        return false; // don't consume — let other handlers process too
     });
 
     // Catch Ctrl+C and Ctrl+Q to quit
