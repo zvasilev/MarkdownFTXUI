@@ -51,7 +51,10 @@ public:
     // Embed mode: skip internal yframe/vscroll/flex so the caller can
     // wrap the viewer element together with other content in a single frame.
     void set_embed(bool embed) { _embed = embed; }
+    bool is_embed() const { return _embed; }
     float scroll() const { return _scroll_ratio; }
+    bool scrollbar_visible() const { return _show_scrollbar; }
+    Theme const& theme() const { return _theme; }
     bool is_link_focused() const;
 
 private:
