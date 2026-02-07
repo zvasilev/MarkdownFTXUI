@@ -38,6 +38,10 @@ private:
     int _cursor_col = 1;
     int _total_lines = 1;
     bool _active = false;
+    // Cache guards for update_cursor_info()
+    const char* _ci_data = nullptr;
+    size_t _ci_size = 0;
+    int _ci_cursor = -1;
     Theme _theme{theme_default()};
     ftxui::Box _editor_box;
     ftxui::Component _component;

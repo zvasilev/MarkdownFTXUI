@@ -50,6 +50,16 @@ void Editor::set_cursor(int line, int col) {
 }
 
 void Editor::update_cursor_info() {
+    // Fast path: skip if content and cursor haven't changed.
+    if (_content.data() == _ci_data &&
+        _content.size() == _ci_size &&
+        _cursor_pos == _ci_cursor) {
+        return;
+    }
+    _ci_data = _content.data();
+    _ci_size = _content.size();
+    _ci_cursor = _cursor_pos;
+
     _total_lines = 1;
     for (char c : _content) {
         if (c == '\n') ++_total_lines;

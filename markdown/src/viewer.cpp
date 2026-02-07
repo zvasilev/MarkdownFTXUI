@@ -1,7 +1,6 @@
 #include "markdown/viewer.hpp"
 
 #include <algorithm>
-#include <iterator>
 
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/mouse.hpp>
@@ -118,10 +117,10 @@ public:
 private:
     void notify_link(LinkEvent event) {
         if (_focused_link < 0) return;
-        auto it = _builder.link_targets().begin();
-        std::advance(it, _focused_link);
+        auto const& targets = _builder.link_targets();
+        if (_focused_link >= static_cast<int>(targets.size())) return;
         if (_link_callback) {
-            _link_callback(it->url, event);
+            _link_callback(targets[_focused_link].url, event);
         }
     }
 };

@@ -1,13 +1,11 @@
 #include "markdown/dom_builder.hpp"
 
-#include <sstream>
-
 #include <ftxui/dom/flexbox_config.hpp>
 
 namespace markdown {
 namespace {
 
-using Links = std::list<LinkTarget>;
+using Links = std::vector<LinkTarget>;
 
 // Returns true if the next link to be inserted matches focused_link.
 bool is_next_link_focused(Links const& links, int focused_link) {
@@ -61,10 +59,16 @@ void collect_inline_words(ASTNode const& node, int depth,
     for (auto const& child : node.children) {
         switch (child.type) {
         case NodeType::Text: {
-            std::istringstream ss(child.text);
-            std::string word;
-            while (ss >> word) {
-                words.push_back(ftxui::text(word) | style);
+            auto const& t = child.text;
+            size_t pos = 0;
+            while (pos < t.size()) {
+                while (pos < t.size() && t[pos] == ' ') ++pos;
+                if (pos >= t.size()) break;
+                auto end = t.find(' ', pos);
+                if (end == std::string::npos) end = t.size();
+                words.push_back(
+                    ftxui::text(t.substr(pos, end - pos)) | style);
+                pos = end;
             }
             break;
         }

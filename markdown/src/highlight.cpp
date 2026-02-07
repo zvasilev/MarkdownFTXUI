@@ -62,12 +62,17 @@ ftxui::Element highlight_line(std::string_view line,
         }
     };
 
-    for (; i < line.size(); ++i) {
+    while (i < line.size()) {
         if (is_inline_syntax(line[i])) {
             flush_normal();
-            parts.push_back(ftxui::text(std::string(1, line[i])) | syntax_style);
+            size_t start = i;
+            while (i < line.size() && is_inline_syntax(line[i])) ++i;
+            parts.push_back(
+                ftxui::text(std::string(line.data() + start, i - start))
+                    | syntax_style);
         } else {
             normal += line[i];
+            ++i;
         }
     }
     flush_normal();
@@ -196,8 +201,8 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
         if (show_line_numbers) {
             std::string num = std::to_string(i + 1);
             // Right-align the number
-            while (static_cast<int>(num.size()) < gw) {
-                num = " " + num;
+            if (static_cast<int>(num.size()) < gw) {
+                num.insert(0, gw - static_cast<int>(num.size()), ' ');
             }
             num += " \u2502 ";
             line_el = ftxui::hbox({

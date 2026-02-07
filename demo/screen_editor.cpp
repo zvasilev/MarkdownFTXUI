@@ -87,7 +87,7 @@ ftxui::Component make_editor_screen(
             ftxui::vbox({
                 ftxui::text(" Editor ") | ftxui::bold | ftxui::center,
                 ftxui::separator(),
-                editor_comp->Render() | ftxui::flex | ftxui::frame,
+                editor_comp->Render() | ftxui::frame | ftxui::flex,
             }) | ed_border
         ) | ftxui::flex;
 

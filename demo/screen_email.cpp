@@ -2,7 +2,6 @@
 #include "common.hpp"
 
 #include <algorithm>
-#include <iterator>
 
 #include <ftxui/component/event.hpp>
 
@@ -99,25 +98,21 @@ ftxui::Component make_email_screen(
     auto with_keys = ftxui::CatchEvent(renderer,
         [=, &theme_index](ftxui::Event ev) {
             if (ev == ftxui::Event::Tab) {
-                int count = static_cast<int>(
-                    builder->link_targets().size());
+                auto const& targets = builder->link_targets();
+                int count = static_cast<int>(targets.size());
                 if (count > 0) {
                     *focused_link = (*focused_link + 1) % count;
-                    auto it = builder->link_targets().begin();
-                    std::advance(it, *focused_link);
-                    *link_url = it->url;
+                    *link_url = targets[*focused_link].url;
                 }
                 return true;
             }
             if (ev == ftxui::Event::TabReverse) {
-                int count = static_cast<int>(
-                    builder->link_targets().size());
+                auto const& targets = builder->link_targets();
+                int count = static_cast<int>(targets.size());
                 if (count > 0) {
                     *focused_link =
                         (*focused_link - 1 + count) % count;
-                    auto it = builder->link_targets().begin();
-                    std::advance(it, *focused_link);
-                    *link_url = it->url;
+                    *link_url = targets[*focused_link].url;
                 }
                 return true;
             }
