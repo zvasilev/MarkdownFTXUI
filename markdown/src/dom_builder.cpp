@@ -9,6 +9,18 @@ namespace {
 
 using Links = std::list<LinkTarget>;
 
+// Returns true if the next link to be inserted matches focused_link.
+bool is_next_link_focused(Links const& links, int focused_link) {
+    return static_cast<int>(links.size()) == focused_link;
+}
+
+// Compute the decorator for a link based on whether it is focused.
+ftxui::Decorator link_style(bool is_focused, ftxui::Decorator base,
+                            Theme const& theme) {
+    if (is_focused) return base | ftxui::underlined | ftxui::inverted;
+    return base | ftxui::underlined | theme.link;
+}
+
 ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
                           int focused_link, Theme const& theme);
 
@@ -69,15 +81,12 @@ void collect_inline_words(ASTNode const& node, int depth,
                                  theme);
             break;
         case NodeType::Link: {
-            bool is_focused =
-                (static_cast<int>(links.size()) == focused_link);
-            auto link_style = is_focused
-                ? (style | ftxui::underlined | ftxui::inverted)
-                : (style | ftxui::underlined | theme.link);
+            bool is_focused = is_next_link_focused(links, focused_link);
+            auto ls = link_style(is_focused, style, theme);
             // Collect link words with underline, then wrap in reflect
             size_t before = words.size();
             collect_inline_words(child, depth, words,
-                                 link_style, links, focused_link, theme);
+                                 ls, links, focused_link, theme);
             // Wrap each word of this link with reflect for click detection
             links.emplace_back(LinkTarget{.url = child.url});
             auto& target = links.back();
@@ -200,11 +209,11 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
         return build_inline_container(node, depth, links, focused_link,
                                       theme) | ftxui::italic;
     case NodeType::Link: {
-        bool is_focused = (static_cast<int>(links.size()) == focused_link);
+        bool is_focused = is_next_link_focused(links, focused_link);
         auto el = build_inline_container(node, depth, links, focused_link,
                                          theme)
-            | ftxui::underlined | theme.link;
-        if (is_focused) el = el | ftxui::inverted | ftxui::focus;
+            | link_style(is_focused, ftxui::nothing, theme);
+        if (is_focused) el = el | ftxui::focus;
         links.emplace_back(LinkTarget{.url = node.url});
         return el | ftxui::reflect(links.back().box);
     }
