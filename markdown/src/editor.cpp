@@ -52,6 +52,48 @@ void Editor::update_cursor_info() {
     }
 }
 
+// Selectable wrapper: gates keyboard events based on _selected.
+// When not selected, returns false so the parent container navigates.
+namespace {
+class SelectableWrap : public ftxui::ComponentBase {
+    bool& _selected;
+public:
+    SelectableWrap(ftxui::Component child, bool& selected)
+        : _selected(selected) {
+        Add(std::move(child));
+    }
+
+    bool Focusable() const override { return true; }
+
+    bool OnEvent(ftxui::Event event) override {
+        if (event.is_mouse()) {
+            if (event.mouse().button == ftxui::Mouse::Left &&
+                event.mouse().motion == ftxui::Mouse::Pressed) {
+                _selected = true;
+                TakeFocus();
+            }
+            return ComponentBase::OnEvent(event);
+        }
+        if (_selected) {
+            if (event == ftxui::Event::Escape) {
+                _selected = false;
+                return true;
+            }
+            if (event == ftxui::Event::Tab || event == ftxui::Event::TabReverse) {
+                ComponentBase::OnEvent(event);
+                return true; // consume Tab while selected
+            }
+            return ComponentBase::OnEvent(event);
+        }
+        if (event == ftxui::Event::Return) {
+            _selected = true;
+            return true;
+        }
+        return false;
+    }
+};
+} // namespace
+
 ftxui::Component Editor::component() {
     if (_component) return _component;
 
@@ -69,7 +111,7 @@ ftxui::Component Editor::component() {
 
     // Intercept left-press mouse clicks to fix cursor positioning
     // (Input's internal cursor_box_ is lost when transform replaces the element).
-    _component = ftxui::CatchEvent(input, [this, input](ftxui::Event event) {
+    auto inner = ftxui::CatchEvent(input, [this, input](ftxui::Event event) {
         if (!event.is_mouse()) return false;
 
         auto& mouse = event.mouse();
@@ -113,6 +155,8 @@ ftxui::Component Editor::component() {
         return true;
     });
 
+    // Wrap with selectable behavior
+    _component = std::make_shared<SelectableWrap>(inner, _selected);
     return _component;
 }
 

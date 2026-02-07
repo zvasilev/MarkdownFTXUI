@@ -38,7 +38,10 @@ ftxui::Element zero_min_width(ftxui::Element e) {
 int main() {
     auto screen = ftxui::ScreenInteractive::Fullscreen();
 
-    // Editor component — owns content, syntax highlighting, cursor, mouse clicks
+    // --- State ---
+    bool show_scrollbar = true;
+
+    // --- Editor ---
     markdown::Editor editor;
     editor.set_content(
         "# Hello Markdown\n\n"
@@ -82,7 +85,7 @@ int main() {
     );
     auto editor_comp = editor.component();
 
-    // Viewer component — owns parser, DomBuilder, caching, link clicks
+    // --- Viewer ---
     markdown::Viewer viewer(markdown::make_cmark_parser());
     std::string last_link_url;
     viewer.on_link_click([&](std::string const& url) {
@@ -90,34 +93,79 @@ int main() {
     });
     auto viewer_comp = viewer.component();
 
-    // Both editor and viewer in the component tree so both receive events
-    auto both = ftxui::Container::Horizontal({editor_comp, viewer_comp});
+    // --- Toolbar ---
+    auto cb_option = ftxui::CheckboxOption::Simple();
+    cb_option.transform = [](ftxui::EntryState s) {
+        auto el = ftxui::text(std::string(s.state ? "[X]" : "[ ]") + " " + s.label);
+        if (s.focused) el |= ftxui::inverted;
+        return el;
+    };
+    cb_option.label = "Scrollbar";
+    cb_option.checked = &show_scrollbar;
+    auto checkbox = ftxui::Checkbox(cb_option);
+    auto quit_btn = ftxui::Button("Quit", [&] { screen.Exit(); },
+                                  ftxui::ButtonOption::Ascii());
+    auto toolbar = ftxui::Container::Horizontal({checkbox, quit_btn});
 
-    auto component = ftxui::Renderer(both, [&] {
-        // Feed editor content and scroll position to the viewer
+    // --- Container: FTXUI handles all navigation ---
+    auto root = ftxui::Container::Vertical({toolbar, editor_comp, viewer_comp});
+
+    auto component = ftxui::Renderer(root, [&] {
+        // Wire state to viewer each frame
         viewer.set_content(editor.content());
+        viewer.show_scrollbar(show_scrollbar);
 
-        float scroll_ratio = 0.0f;
-        if (editor.total_lines() > 1) {
-            scroll_ratio = static_cast<float>(editor.cursor_line() - 1) /
-                           static_cast<float>(editor.total_lines() - 1);
+        // Only sync scroll from editor when viewer is not selected
+        if (!viewer.selected()) {
+            float scroll_ratio = 0.0f;
+            if (editor.total_lines() > 1) {
+                scroll_ratio = static_cast<float>(editor.cursor_line() - 1) /
+                               static_cast<float>(editor.total_lines() - 1);
+            }
+            viewer.set_scroll(scroll_ratio);
         }
-        viewer.set_scroll(scroll_ratio);
 
+        // Three border states
+        auto selected_border = ftxui::borderStyled(
+            ftxui::BorderStyle::DOUBLE, ftxui::Color::White);
+        auto focused_border = ftxui::borderStyled(ftxui::Color::White);
+        auto dim_border = ftxui::borderStyled(ftxui::Color::GrayDark);
+
+        auto tb_border = toolbar->Focused() ? focused_border : dim_border;
+        auto ed_border = !editor_comp->Focused() ? dim_border
+            : (editor.selected() ? selected_border : focused_border);
+        auto vw_border = !viewer_comp->Focused() ? dim_border
+            : (viewer.selected() ? selected_border : focused_border);
+
+        // Toolbar
+        auto toolbar_el = ftxui::hbox({
+            ftxui::text(" "),
+            checkbox->Render(),
+            ftxui::text("  "),
+            quit_btn->Render(),
+            ftxui::filler(),
+            ftxui::text(" Enter:select  Esc:back  Ctrl+Q:quit ") | ftxui::dim,
+        }) | tb_border;
+
+        // Editor pane
         auto editor_pane = zero_min_width(
             ftxui::vbox({
                 ftxui::text(" Markdown Editor ") | ftxui::bold | ftxui::center,
                 ftxui::separator(),
                 editor_comp->Render() | ftxui::flex | ftxui::frame,
-            }) | ftxui::border) | ftxui::flex;
+            }) | ed_border
+        ) | ftxui::flex;
 
+        // Viewer pane
         auto viewer_pane = zero_min_width(
             ftxui::vbox({
                 ftxui::text(" Markdown Viewer ") | ftxui::bold | ftxui::center,
                 ftxui::separator(),
                 viewer_comp->Render(),
-            }) | ftxui::border) | ftxui::flex;
+            }) | vw_border
+        ) | ftxui::flex;
 
+        // Status bar
         auto status_text = " Ln " + std::to_string(editor.cursor_line()) +
                            ", Col " + std::to_string(editor.cursor_col()) +
                            " | " + std::to_string(editor.content().size()) + " chars ";
@@ -131,6 +179,7 @@ int main() {
         auto status_bar = ftxui::hbox(std::move(status_parts));
 
         return ftxui::vbox({
+            toolbar_el,
             ftxui::hbox({
                 editor_pane,
                 viewer_pane,
@@ -139,8 +188,15 @@ int main() {
         });
     });
 
-    // Catch Ctrl+C and Ctrl+Q to quit
+    // ArrowRight/Left → ArrowDown/Up when nothing is selected.
+    // Ctrl+Q to quit.
     component = ftxui::CatchEvent(component, [&](ftxui::Event event) {
+        if (!editor.selected() && !viewer.selected()) {
+            if (event == ftxui::Event::ArrowRight)
+                return root->OnEvent(ftxui::Event::ArrowDown);
+            if (event == ftxui::Event::ArrowLeft)
+                return root->OnEvent(ftxui::Event::ArrowUp);
+        }
         if (event == ftxui::Event::Character('q') &&
             event.is_character() == false) {
             screen.Exit();

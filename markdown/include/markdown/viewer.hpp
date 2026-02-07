@@ -23,6 +23,7 @@ public:
     void on_link_click(std::function<void(std::string const&)> callback);
 
     ftxui::Component component();
+    bool selected() const { return _selected; }
 
 private:
     std::unique_ptr<MarkdownParser> _parser;
@@ -32,6 +33,7 @@ private:
     ftxui::Element _cached_element = ftxui::text("");
     float _scroll_ratio = 0.0f;
     bool _show_scrollbar = true;
+    bool _selected = false;
     std::function<void(std::string const&)> _link_callback;
     ftxui::Component _component;
 };
