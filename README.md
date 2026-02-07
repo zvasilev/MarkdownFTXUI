@@ -173,4 +173,4 @@ See [docs/testing.md](docs/testing.md) for the full test list and instructions f
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
