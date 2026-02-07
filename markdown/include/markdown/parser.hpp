@@ -13,4 +13,8 @@ public:
     virtual MarkdownAST parse(std::string_view input) = 0;
 };
 
+// Factory — creates a parser backed by cmark-gfm.
+// cmark types are fully hidden inside the implementation.
+std::unique_ptr<MarkdownParser> make_cmark_parser();
+
 } // namespace markdown

@@ -10,6 +10,11 @@ target_include_directories(markdown-ui PUBLIC include)
 
 target_compile_definitions(markdown-ui PRIVATE CMARK_GFM_STATIC_DEFINE)
 
+target_include_directories(markdown-ui PRIVATE
+    ${cmark-gfm_SOURCE_DIR}/src
+    ${cmark-gfm_BINARY_DIR}/src
+)
+
 target_link_libraries(markdown-ui
     PUBLIC
         ftxui::screen
