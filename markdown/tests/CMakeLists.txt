@@ -13,3 +13,7 @@ add_test(NAME test_dom_builder COMMAND test_dom_builder)
 add_executable(test_headings test_headings.cpp)
 target_link_libraries(test_headings PRIVATE markdown-ui)
 add_test(NAME test_headings COMMAND test_headings)
+
+add_executable(test_bold test_bold.cpp)
+target_link_libraries(test_bold PRIVATE markdown-ui)
+add_test(NAME test_bold COMMAND test_bold)

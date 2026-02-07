@@ -49,6 +49,8 @@ ftxui::Element build_node(ASTNode const& node) {
     }
     case NodeType::Paragraph:
         return build_inline_container(node);
+    case NodeType::Strong:
+        return build_inline_container(node) | ftxui::bold;
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:
