@@ -13,6 +13,7 @@ Viewer::Viewer(std::unique_ptr<MarkdownParser> parser)
 
 void Viewer::set_content(std::string_view markdown_text) {
     _content.assign(markdown_text.data(), markdown_text.size());
+    ++_content_gen;
 }
 
 void Viewer::set_scroll(float ratio) {
@@ -131,17 +132,17 @@ ftxui::Component Viewer::component() {
 
     auto renderer = ftxui::Renderer([this] {
         // Parse only when content changes
-        if (_content != _last_parsed) {
+        if (_content_gen != _parsed_gen) {
             _cached_ast = _parser->parse(_content);
-            _last_parsed = _content;
+            _parsed_gen = _content_gen;
         }
         // Rebuild element when content, focused link, or theme changes
-        if (_content != _last_built ||
+        if (_parsed_gen != _built_gen ||
             _focused_link != _last_focused_link ||
             _theme != _last_theme) {
             _cached_element = _builder.build(_cached_ast, _focused_link,
                                              *_theme);
-            _last_built = _content;
+            _built_gen = _parsed_gen;
             _last_focused_link = _focused_link;
             _last_theme = _theme;
         }

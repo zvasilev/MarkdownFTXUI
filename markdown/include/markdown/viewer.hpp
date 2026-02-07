@@ -33,8 +33,9 @@ private:
     std::unique_ptr<MarkdownParser> _parser;
     DomBuilder _builder;
     std::string _content;
-    std::string _last_parsed;
-    std::string _last_built;
+    uint64_t _content_gen = 0;
+    uint64_t _parsed_gen = 0;
+    uint64_t _built_gen = 0;
     MarkdownAST _cached_ast;
     ftxui::Element _cached_element = ftxui::text("");
     float _scroll_ratio = 0.0f;
