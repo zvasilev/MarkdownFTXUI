@@ -35,6 +35,16 @@ bool is_syntax_at(std::string_view line, size_t pos, size_t marker_end) {
     return pos < marker_end || is_inline_syntax(line[pos]);
 }
 
+// Return the byte length of the UTF-8 character starting at the given byte.
+size_t utf8_glyph_len(char leading_byte) {
+    auto b = static_cast<unsigned char>(leading_byte);
+    if (b < 0x80) return 1;
+    if (b < 0xC0) return 1; // continuation byte (shouldn't be leading)
+    if (b < 0xE0) return 2;
+    if (b < 0xF0) return 3;
+    return 4;
+}
+
 // Highlight a single line, returning an Element
 ftxui::Element highlight_line(std::string_view line) {
     ftxui::Elements parts;
@@ -77,8 +87,8 @@ ftxui::Element highlight_line(std::string_view line) {
     return ftxui::hbox(std::move(parts));
 }
 
-// Highlight a single line with cursor embedded at cursor_idx.
-// Only the cursor line uses this (character-by-character) approach.
+// Highlight a single line with cursor embedded at cursor_idx (byte offset).
+// Iterates glyph-by-glyph to handle multi-byte UTF-8 characters correctly.
 ftxui::Element highlight_line_with_cursor(std::string_view line,
                                           int cursor_idx,
                                           ftxui::Decorator cursor_style) {
@@ -86,8 +96,11 @@ ftxui::Element highlight_line_with_cursor(std::string_view line,
     auto syntax_style = ftxui::color(ftxui::Color::Yellow) | ftxui::dim;
     size_t marker_end = line_marker_end(line);
 
-    for (size_t i = 0; i < line.size(); ++i) {
-        auto el = ftxui::text(std::string(1, line[i]));
+    size_t i = 0;
+    while (i < line.size()) {
+        size_t glen = utf8_glyph_len(line[i]);
+        glen = std::min(glen, line.size() - i); // clamp to remaining
+        auto el = ftxui::text(std::string(line.substr(i, glen)));
         if (is_syntax_at(line, i, marker_end)) {
             el = el | syntax_style;
         }
@@ -95,6 +108,7 @@ ftxui::Element highlight_line_with_cursor(std::string_view line,
             el = el | cursor_style;
         }
         parts.push_back(std::move(el));
+        i += glen;
     }
 
     // Cursor at end of line
