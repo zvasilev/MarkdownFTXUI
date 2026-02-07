@@ -13,9 +13,9 @@ int main() {
 
     std::string document_text = "# Hello Markdown\n\n"
         "## Section One\n\n"
-        "This is a paragraph with **bold text** inside.\n\n"
+        "This is **bold**, *italic*, and ***bold italic***.\n\n"
         "### Subsection\n\n"
-        "A *subtle* point and **strong** emphasis.\n";
+        "**Bold with *nested italic* inside** works too.\n";
 
     auto parser = markdown::make_cmark_parser();
     markdown::DomBuilder builder;
