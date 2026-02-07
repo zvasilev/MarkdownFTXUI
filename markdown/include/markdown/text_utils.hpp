@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <string_view>
+#include <vector>
 
 namespace markdown {
 
@@ -48,6 +49,22 @@ inline int gutter_width(int total_lines) {
 // Total gutter column width: digits + " │ " (3 extra terminal columns).
 inline int gutter_chars(int total_lines) {
     return gutter_width(total_lines) + 3;
+}
+
+// Split text into lines (without newline characters).
+inline std::vector<std::string_view> split_lines(std::string_view text) {
+    std::vector<std::string_view> lines;
+    size_t start = 0;
+    while (start <= text.size()) {
+        auto end = text.find('\n', start);
+        if (end == std::string_view::npos) {
+            lines.push_back(text.substr(start));
+            break;
+        }
+        lines.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+    return lines;
 }
 
 } // namespace markdown

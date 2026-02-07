@@ -132,22 +132,6 @@ ftxui::Element highlight_line_with_cursor(std::string_view line,
     return ftxui::hbox(std::move(parts));
 }
 
-// Split text into lines (without newline characters)
-std::vector<std::string_view> split_lines(std::string_view text) {
-    std::vector<std::string_view> lines;
-    size_t start = 0;
-    while (start <= text.size()) {
-        auto end = text.find('\n', start);
-        if (end == std::string_view::npos) {
-            lines.push_back(text.substr(start));
-            break;
-        }
-        lines.push_back(text.substr(start, end - start));
-        start = end + 1;
-    }
-    return lines;
-}
-
 } // namespace
 
 ftxui::Element highlight_markdown_syntax(std::string_view text,

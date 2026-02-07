@@ -3,7 +3,6 @@
 #include "markdown/text_utils.hpp"
 
 #include <algorithm>
-#include <sstream>
 #include <vector>
 
 #include <ftxui/component/event.hpp>
@@ -161,10 +160,7 @@ ftxui::Component Editor::component() {
         int click_x = mouse.x - _editor_box.x_min;
 
         // Split document into lines
-        std::vector<std::string> lines;
-        std::istringstream iss(_content);
-        std::string line;
-        while (std::getline(iss, line)) lines.push_back(line);
+        auto lines = split_lines(_content);
         if (lines.empty()) lines.push_back("");
 
         // Subtract gutter columns from click_x
