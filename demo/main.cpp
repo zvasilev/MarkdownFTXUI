@@ -6,10 +6,39 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/dom/node.hpp>
 
 #include "markdown/parser.hpp"
 #include "markdown/dom_builder.hpp"
 #include "markdown/highlight.hpp"
+
+namespace {
+// Reports min_x=0 so that flex distributes hbox space equally,
+// while passing through the full assigned width to the child.
+// Applied at the pane level (outside frame/border) so that frame
+// scrolling still works correctly with the real content width.
+class ZeroMinWidth : public ftxui::Node {
+public:
+    explicit ZeroMinWidth(ftxui::Element child)
+        : ftxui::Node({std::move(child)}) {}
+    void ComputeRequirement() override {
+        children_[0]->ComputeRequirement();
+        requirement_ = children_[0]->requirement();
+        requirement_.min_x = 0;
+    }
+    void SetBox(ftxui::Box box) override {
+        ftxui::Node::SetBox(box);
+        children_[0]->SetBox(box);
+    }
+    void Render(ftxui::Screen& screen) override {
+        children_[0]->Render(screen);
+    }
+};
+
+ftxui::Element zero_min_width(ftxui::Element e) {
+    return std::make_shared<ZeroMinWidth>(std::move(e));
+}
+} // namespace
 
 int main() {
     auto screen = ftxui::ScreenInteractive::Fullscreen();
@@ -137,11 +166,12 @@ int main() {
             }
         }
 
-        auto editor_pane = ftxui::vbox({
-            ftxui::text(" Markdown Editor ") | ftxui::bold | ftxui::center,
-            ftxui::separator(),
-            input_with_mouse->Render() | ftxui::flex | ftxui::frame,
-        }) | ftxui::border | ftxui::flex;
+        auto editor_pane = zero_min_width(
+            ftxui::vbox({
+                ftxui::text(" Markdown Editor ") | ftxui::bold | ftxui::center,
+                ftxui::separator(),
+                input_with_mouse->Render() | ftxui::flex | ftxui::frame,
+            }) | ftxui::border) | ftxui::flex;
 
         // Proportional scroll sync: scroll viewer to match editor cursor position
         float scroll_ratio = 0.0f;
@@ -150,12 +180,13 @@ int main() {
                            static_cast<float>(total_lines - 1);
         }
 
-        auto viewer_pane = ftxui::vbox({
-            ftxui::text(" Markdown Viewer ") | ftxui::bold | ftxui::center,
-            ftxui::separator(),
-            viewer_element | ftxui::focusPositionRelative(0.0f, scroll_ratio)
-                           | ftxui::frame | ftxui::flex,
-        }) | ftxui::border | ftxui::flex;
+        auto viewer_pane = zero_min_width(
+            ftxui::vbox({
+                ftxui::text(" Markdown Viewer ") | ftxui::bold | ftxui::center,
+                ftxui::separator(),
+                viewer_element | ftxui::focusPositionRelative(0.0f, scroll_ratio)
+                               | ftxui::frame | ftxui::flex,
+            }) | ftxui::border) | ftxui::flex;
 
         auto status_text = " Ln " + std::to_string(cur_line) +
                            ", Col " + std::to_string(cur_col) +

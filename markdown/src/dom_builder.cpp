@@ -67,7 +67,15 @@ ftxui::Element build_node(ASTNode const& node, int depth) {
         if (children.empty()) {
             return ftxui::text("");
         }
-        return ftxui::vbox(std::move(children));
+        // Insert blank line between top-level blocks for readability
+        ftxui::Elements spaced;
+        for (size_t i = 0; i < children.size(); ++i) {
+            if (i > 0) {
+                spaced.push_back(ftxui::text(""));
+            }
+            spaced.push_back(std::move(children[i]));
+        }
+        return ftxui::vbox(std::move(spaced));
     }
     case NodeType::Heading: {
         auto content = build_inline_container(node, depth);

@@ -27,7 +27,7 @@ int main() {
         auto ast = parser->parse("Line one\n\nLine two");
         auto element = builder.build(ast);
         auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
-                                            ftxui::Dimension::Fixed(2));
+                                            ftxui::Dimension::Fixed(3));
         ftxui::Render(screen, element);
         auto output = screen.ToString();
         ASSERT_CONTAINS(output, "Line one");
