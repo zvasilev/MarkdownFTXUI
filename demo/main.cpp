@@ -15,7 +15,7 @@ int main() {
         "## Section One\n\n"
         "This is **bold**, *italic*, and ***bold italic***.\n\n"
         "### Subsection\n\n"
-        "**Bold with *nested italic* inside** works too.\n";
+        "Read the [documentation](https://example.com) or a [**bold link**](url).\n";
 
     auto parser = markdown::make_cmark_parser();
     markdown::DomBuilder builder;

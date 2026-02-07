@@ -25,3 +25,7 @@ add_test(NAME test_italic COMMAND test_italic)
 add_executable(test_bold_italic test_bold_italic.cpp)
 target_link_libraries(test_bold_italic PRIVATE markdown-ui)
 add_test(NAME test_bold_italic COMMAND test_bold_italic)
+
+add_executable(test_links test_links.cpp)
+target_link_libraries(test_links PRIVATE markdown-ui)
+add_test(NAME test_links COMMAND test_links)
