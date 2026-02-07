@@ -24,26 +24,26 @@ void Viewer::show_scrollbar(bool show) {
 }
 
 void Viewer::on_link_click(
-    std::function<void(std::string const&, bool)> callback) {
+    std::function<void(std::string const&, LinkEvent)> callback) {
     _link_callback = std::move(callback);
 }
 
-// Selectable wrapper with built-in scroll and link navigation for the viewer.
-// When selected: Tab/Shift+Tab cycle links, Enter presses focused link,
-// ArrowUp/Down scroll, Esc deselects.
-// When not selected: all keyboard unhandled -> container navigates.
+// Wrapper with built-in scroll and link navigation for the viewer.
+// When active: Tab/Shift+Tab cycle links, Enter presses focused link,
+// ArrowUp/Down scroll, Esc deactivates.
+// When inactive: all keyboard unhandled -> container navigates.
 namespace {
-class SelectableViewer : public ftxui::ComponentBase {
-    bool& _selected;
+class ViewerWrap : public ftxui::ComponentBase {
+    bool& _active;
     float& _scroll_ratio;
     int& _focused_link;
     DomBuilder& _builder;
-    std::function<void(std::string const&, bool)>& _link_callback;
+    std::function<void(std::string const&, LinkEvent)>& _link_callback;
 public:
-    SelectableViewer(ftxui::Component child, bool& selected, float& scroll,
-                     int& focused_link, DomBuilder& builder,
-                     std::function<void(std::string const&, bool)>& link_cb)
-        : _selected(selected), _scroll_ratio(scroll),
+    ViewerWrap(ftxui::Component child, bool& active, float& scroll,
+               int& focused_link, DomBuilder& builder,
+               std::function<void(std::string const&, LinkEvent)>& link_cb)
+        : _active(active), _scroll_ratio(scroll),
           _focused_link(focused_link), _builder(builder),
           _link_callback(link_cb) {
         Add(std::move(child));
@@ -55,14 +55,14 @@ public:
         if (event.is_mouse()) {
             if (event.mouse().button == ftxui::Mouse::Left &&
                 event.mouse().motion == ftxui::Mouse::Pressed) {
-                _selected = true;
+                _active = true;
                 TakeFocus();
             }
             return ComponentBase::OnEvent(event);
         }
-        if (_selected) {
+        if (_active) {
             if (event == ftxui::Event::Escape) {
-                _selected = false;
+                _active = false;
                 _focused_link = -1;
                 return true;
             }
@@ -72,7 +72,7 @@ public:
                     _builder.link_targets().size());
                 if (count > 0) {
                     _focused_link = (_focused_link + 1) % count;
-                    notify_link_focus();
+                    notify_link(LinkEvent::Focus);
                 }
                 return true;
             }
@@ -83,18 +83,14 @@ public:
                 if (count > 0) {
                     _focused_link =
                         (_focused_link - 1 + count) % count;
-                    notify_link_focus();
+                    notify_link(LinkEvent::Focus);
                 }
                 return true;
             }
             // Enter presses the focused link
             if (event == ftxui::Event::Return) {
                 if (_focused_link >= 0) {
-                    auto it = _builder.link_targets().begin();
-                    std::advance(it, _focused_link);
-                    if (_link_callback) {
-                        _link_callback(it->url, true);
-                    }
+                    notify_link(LinkEvent::Press);
                     return true;
                 }
                 return false;
@@ -112,19 +108,19 @@ public:
             return false;
         }
         if (event == ftxui::Event::Return) {
-            _selected = true;
+            _active = true;
             return true;
         }
         return false;
     }
 
 private:
-    void notify_link_focus() {
+    void notify_link(LinkEvent event) {
         if (_focused_link < 0) return;
         auto it = _builder.link_targets().begin();
         std::advance(it, _focused_link);
         if (_link_callback) {
-            _link_callback(it->url, false);
+            _link_callback(it->url, event);
         }
     }
 };
@@ -166,7 +162,7 @@ ftxui::Component Viewer::component() {
         for (auto const& link : _builder.link_targets()) {
             if (link.box.Contain(mouse.x, mouse.y)) {
                 if (_link_callback) {
-                    _link_callback(link.url, true);
+                    _link_callback(link.url, LinkEvent::Press);
                 }
                 return true;
             }
@@ -174,9 +170,9 @@ ftxui::Component Viewer::component() {
         return false;
     });
 
-    // Wrap with selectable + scroll + link navigation behavior
-    _component = std::make_shared<SelectableViewer>(
-        inner, _selected, _scroll_ratio, _focused_link,
+    // Wrap with active + scroll + link navigation behavior
+    _component = std::make_shared<ViewerWrap>(
+        inner, _active, _scroll_ratio, _focused_link,
         _builder, _link_callback);
     return _component;
 }

@@ -10,7 +10,16 @@ namespace markdown {
 class MarkdownParser {
 public:
     virtual ~MarkdownParser() = default;
-    virtual MarkdownAST parse(std::string_view input) = 0;
+
+    // Returns false if parsing failed (out will contain a raw-text fallback).
+    virtual bool parse(std::string_view input, MarkdownAST& out) = 0;
+
+    // Convenience overload — returns AST directly, ignoring success/failure.
+    MarkdownAST parse(std::string_view input) {
+        MarkdownAST ast;
+        parse(input, ast);
+        return ast;
+    }
 };
 
 // Factory — creates a parser backed by cmark-gfm.

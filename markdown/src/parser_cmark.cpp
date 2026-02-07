@@ -121,23 +121,23 @@ ASTNode convert_node(cmark_node* node) {
 
 class CmarkParser : public MarkdownParser {
 public:
-    MarkdownAST parse(std::string_view input) override {
+    bool parse(std::string_view input, MarkdownAST& out) override {
         cmark_node* doc = cmark_parse_document(
             input.data(), input.size(), CMARK_OPT_DEFAULT);
 
         if (!doc) {
-            // Parsing failed entirely — return raw text as fallback
-            ASTNode fallback{.type = NodeType::Document};
+            // Parsing failed — provide raw text as fallback
+            out = ASTNode{.type = NodeType::Document};
             ASTNode para{.type = NodeType::Paragraph};
             para.children.push_back(
                 ASTNode{.type = NodeType::Text, .text = std::string(input)});
-            fallback.children.push_back(std::move(para));
-            return fallback;
+            out.children.push_back(std::move(para));
+            return false;
         }
 
-        auto ast = convert_node(doc);
+        out = convert_node(doc);
         cmark_node_free(doc);
-        return ast;
+        return true;
     }
 };
 

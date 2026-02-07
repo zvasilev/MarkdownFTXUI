@@ -55,14 +55,14 @@ void Editor::update_cursor_info() {
     }
 }
 
-// Selectable wrapper: gates keyboard events based on _selected.
+// Selectable wrapper: gates keyboard events based on _active.
 // When not selected, returns false so the parent container navigates.
 namespace {
 class SelectableWrap : public ftxui::ComponentBase {
-    bool& _selected;
+    bool& _active;
 public:
     SelectableWrap(ftxui::Component child, bool& selected)
-        : _selected(selected) {
+        : _active(selected) {
         Add(std::move(child));
     }
 
@@ -72,14 +72,14 @@ public:
         if (event.is_mouse()) {
             if (event.mouse().button == ftxui::Mouse::Left &&
                 event.mouse().motion == ftxui::Mouse::Pressed) {
-                _selected = true;
+                _active = true;
                 TakeFocus();
             }
             return ComponentBase::OnEvent(event);
         }
-        if (_selected) {
+        if (_active) {
             if (event == ftxui::Event::Escape) {
-                _selected = false;
+                _active = false;
                 return true;
             }
             if (event == ftxui::Event::Tab || event == ftxui::Event::TabReverse) {
@@ -89,7 +89,7 @@ public:
             return ComponentBase::OnEvent(event);
         }
         if (event == ftxui::Event::Return) {
-            _selected = true;
+            _active = true;
             return true;
         }
         return false;
@@ -160,7 +160,7 @@ ftxui::Component Editor::component() {
     });
 
     // Wrap with selectable behavior
-    _component = std::make_shared<SelectableWrap>(inner, _selected);
+    _component = std::make_shared<SelectableWrap>(inner, _active);
     return _component;
 }
 

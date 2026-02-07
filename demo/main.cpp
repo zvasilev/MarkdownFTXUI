@@ -91,9 +91,8 @@ int main() {
     // --- Viewer ---
     markdown::Viewer viewer(markdown::make_cmark_parser());
     std::string last_link_url;
-    viewer.on_link_click([&](std::string const& url, bool pressed) {
+    viewer.on_link_click([&](std::string const& url, markdown::LinkEvent) {
         last_link_url = url;
-        (void)pressed;
     });
     auto viewer_comp = viewer.component();
 
@@ -119,8 +118,8 @@ int main() {
         viewer.set_content(editor.content());
         viewer.show_scrollbar(show_scrollbar);
 
-        // Only sync scroll from editor when viewer is not selected
-        if (!viewer.selected()) {
+        // Only sync scroll from editor when viewer is not active
+        if (!viewer.active()) {
             float scroll_ratio = 0.0f;
             if (editor.total_lines() > 1) {
                 scroll_ratio = static_cast<float>(editor.cursor_line() - 1) /
@@ -130,16 +129,16 @@ int main() {
         }
 
         // Three border states
-        auto selected_border = ftxui::borderStyled(
+        auto active_border = ftxui::borderStyled(
             ftxui::BorderStyle::DOUBLE, ftxui::Color::White);
         auto focused_border = ftxui::borderStyled(ftxui::Color::White);
         auto dim_border = ftxui::borderStyled(ftxui::Color::GrayDark);
 
         auto tb_border = toolbar->Focused() ? focused_border : dim_border;
         auto ed_border = !editor_comp->Focused() ? dim_border
-            : (editor.selected() ? selected_border : focused_border);
+            : (editor.active() ? active_border : focused_border);
         auto vw_border = !viewer_comp->Focused() ? dim_border
-            : (viewer.selected() ? selected_border : focused_border);
+            : (viewer.active() ? active_border : focused_border);
 
         // Toolbar
         auto toolbar_el = ftxui::hbox({
@@ -192,10 +191,10 @@ int main() {
         });
     });
 
-    // ArrowRight/Left → ArrowDown/Up when nothing is selected.
+    // ArrowRight/Left → ArrowDown/Up when nothing is active.
     // Ctrl+Q to quit.
     component = ftxui::CatchEvent(component, [&](ftxui::Event event) {
-        if (!editor.selected() && !viewer.selected()) {
+        if (!editor.active() && !viewer.active()) {
             if (event == ftxui::Event::ArrowRight)
                 return root->OnEvent(ftxui::Event::ArrowDown);
             if (event == ftxui::Event::ArrowLeft)

@@ -13,6 +13,8 @@
 
 namespace markdown {
 
+enum class LinkEvent { Focus, Press };
+
 class Viewer {
 public:
     explicit Viewer(std::unique_ptr<MarkdownParser> parser);
@@ -20,10 +22,11 @@ public:
     void set_content(std::string_view markdown_text);
     void set_scroll(float ratio);
     void show_scrollbar(bool show);
-    void on_link_click(std::function<void(std::string const&, bool)> callback);
+    void on_link_click(
+        std::function<void(std::string const&, LinkEvent)> callback);
 
     ftxui::Component component();
-    bool selected() const { return _selected; }
+    bool active() const { return _active; }
 
 private:
     std::unique_ptr<MarkdownParser> _parser;
@@ -35,10 +38,10 @@ private:
     ftxui::Element _cached_element = ftxui::text("");
     float _scroll_ratio = 0.0f;
     bool _show_scrollbar = true;
-    bool _selected = false;
+    bool _active = false;
     int _focused_link = -1;
     int _last_focused_link = -1;
-    std::function<void(std::string const&, bool)> _link_callback;
+    std::function<void(std::string const&, LinkEvent)> _link_callback;
     ftxui::Component _component;
 };
 
