@@ -28,6 +28,7 @@ public:
 
     ftxui::Component component();
     bool active() const { return _active; }
+    void set_active(bool a) { _active = a; }
 
 private:
     std::unique_ptr<MarkdownParser> _parser;
