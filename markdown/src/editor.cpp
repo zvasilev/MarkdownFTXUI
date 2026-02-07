@@ -21,6 +21,35 @@ void Editor::set_content(std::string text) {
     _content = std::move(text);
 }
 
+void Editor::set_cursor_position(int byte_offset) {
+    _cursor_pos = std::clamp(byte_offset, 0,
+                             static_cast<int>(_content.size()));
+}
+
+void Editor::set_cursor(int line, int col) {
+    // line and col are 1-based; col counts UTF-8 characters.
+    line = std::max(1, line);
+    col = std::max(1, col);
+
+    size_t pos = 0;
+    int current_line = 1;
+    while (current_line < line && pos < _content.size()) {
+        auto nl = _content.find('\n', pos);
+        if (nl == std::string::npos) break;
+        pos = nl + 1;
+        ++current_line;
+    }
+    // pos is now at the start of the target line (or as close as we can get).
+    // Find the end of this line to get its content.
+    auto nl = _content.find('\n', pos);
+    size_t line_end = (nl == std::string::npos) ? _content.size() : nl;
+    auto line_view = std::string_view(_content.data() + pos, line_end - pos);
+
+    // Convert 1-based character column to byte offset within the line.
+    size_t byte_col = utf8_char_to_byte(line_view, col - 1);
+    _cursor_pos = static_cast<int>(pos + byte_col);
+}
+
 void Editor::update_cursor_info() {
     _total_lines = 1;
     for (char c : _content) {

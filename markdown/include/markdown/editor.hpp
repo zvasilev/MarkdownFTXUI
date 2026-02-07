@@ -19,8 +19,12 @@ public:
 
     int cursor_line() const { return _cursor_line; }
     int cursor_col() const { return _cursor_col; }
+    int cursor_position() const { return _cursor_pos; }
     int total_lines() const { return _total_lines; }
     bool active() const { return _active; }
+
+    void set_cursor_position(int byte_offset);
+    void set_cursor(int line, int col);
 
 private:
     void update_cursor_info();
