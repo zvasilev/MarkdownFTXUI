@@ -12,6 +12,7 @@ int main() {
     auto screen = ftxui::ScreenInteractive::Fullscreen();
 
     std::string document_text = "# Hello Markdown\n\n"
+        "> Focus on **important** tasks\n\n"
         "## Section One\n\n"
         "This is **bold**, *italic*, and ***bold italic***.\n\n"
         "### Todo List\n\n"

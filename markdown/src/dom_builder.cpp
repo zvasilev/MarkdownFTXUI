@@ -70,6 +70,13 @@ ftxui::Element build_node(ASTNode const& node) {
             content,
         });
     }
+    case NodeType::BlockQuote: {
+        auto content = ftxui::vbox(build_children(node));
+        return ftxui::hbox({
+            ftxui::text("\u2502 "),
+            content | ftxui::dim,
+        });
+    }
     case NodeType::CodeInline:
         return ftxui::text(node.text) | ftxui::inverted;
     case NodeType::Text:

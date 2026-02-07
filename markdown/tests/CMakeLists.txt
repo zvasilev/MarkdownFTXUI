@@ -37,3 +37,7 @@ add_test(NAME test_lists COMMAND test_lists)
 add_executable(test_code test_code.cpp)
 target_link_libraries(test_code PRIVATE markdown-ui)
 add_test(NAME test_code COMMAND test_code)
+
+add_executable(test_quotes test_quotes.cpp)
+target_link_libraries(test_quotes PRIVATE markdown-ui)
+add_test(NAME test_quotes COMMAND test_quotes)
