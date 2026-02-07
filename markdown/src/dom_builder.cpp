@@ -1,5 +1,9 @@
 #include "markdown/dom_builder.hpp"
 
+#include <sstream>
+
+#include <ftxui/dom/flexbox_config.hpp>
+
 namespace markdown {
 namespace {
 
@@ -26,6 +30,57 @@ ftxui::Element build_inline_container(ASTNode const& node, int depth) {
         return std::move(parts[0]);
     }
     return ftxui::hbox(std::move(parts));
+}
+
+// Recursively collect words from inline AST nodes, preserving decorators.
+// Each word becomes a separate flexbox item so wrapping works at word
+// boundaries even inside bold/italic/link runs.
+void collect_inline_words(ASTNode const& node, int depth,
+                          ftxui::Elements& words,
+                          ftxui::Decorator style) {
+    for (auto const& child : node.children) {
+        switch (child.type) {
+        case NodeType::Text: {
+            std::istringstream ss(child.text);
+            std::string word;
+            while (ss >> word) {
+                words.push_back(ftxui::text(word) | style);
+            }
+            break;
+        }
+        case NodeType::SoftBreak:
+            break; // flexbox gap handles spacing
+        case NodeType::Strong:
+            collect_inline_words(child, depth, words,
+                                 style | ftxui::bold);
+            break;
+        case NodeType::Emphasis:
+            collect_inline_words(child, depth, words,
+                                 style | ftxui::italic);
+            break;
+        case NodeType::Link:
+            collect_inline_words(child, depth, words,
+                                 style | ftxui::underlined);
+            break;
+        case NodeType::CodeInline:
+            words.push_back(ftxui::text(child.text) | ftxui::inverted | style);
+            break;
+        default:
+            words.push_back(build_node(child, depth) | style);
+            break;
+        }
+    }
+}
+
+// Wrapping version of build_inline_container for block-level paragraphs.
+// Splits all inline content into word-level flexbox items for line wrapping.
+ftxui::Element build_wrapping_container(ASTNode const& node, int depth) {
+    static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
+    ftxui::Elements words;
+    collect_inline_words(node, depth, words, ftxui::nothing);
+    if (words.empty()) return ftxui::text("");
+    if (words.size() == 1) return std::move(words[0]);
+    return ftxui::flexbox(std::move(words), wrap_config);
 }
 
 // Build a ListItem: first Paragraph gets bullet/number prefix,
@@ -88,7 +143,7 @@ ftxui::Element build_node(ASTNode const& node, int depth) {
         }
     }
     case NodeType::Paragraph:
-        return build_inline_container(node, depth);
+        return build_wrapping_container(node, depth);
     case NodeType::Strong:
         return build_inline_container(node, depth) | ftxui::bold;
     case NodeType::Emphasis:

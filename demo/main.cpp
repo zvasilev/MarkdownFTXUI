@@ -185,7 +185,7 @@ int main() {
                 ftxui::text(" Markdown Viewer ") | ftxui::bold | ftxui::center,
                 ftxui::separator(),
                 viewer_element | ftxui::focusPositionRelative(0.0f, scroll_ratio)
-                               | ftxui::frame | ftxui::flex,
+                               | ftxui::yframe | ftxui::flex,
             }) | ftxui::border) | ftxui::flex;
 
         auto status_text = " Ln " + std::to_string(cur_line) +

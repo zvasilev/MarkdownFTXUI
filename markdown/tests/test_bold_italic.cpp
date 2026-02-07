@@ -73,9 +73,10 @@ int main() {
         ASSERT_TRUE(screen.PixelAt(9, 0).bold);
         ASSERT_TRUE(screen.PixelAt(9, 0).italic);
 
-        // " here" (positions 15+) should be bold but not italic
-        ASSERT_TRUE(screen.PixelAt(15, 0).bold);
-        ASSERT_TRUE(!screen.PixelAt(15, 0).italic);
+        // "here" (position 16+) should be bold but not italic
+        // (position 15 is a flexbox gap between words)
+        ASSERT_TRUE(screen.PixelAt(16, 0).bold);
+        ASSERT_TRUE(!screen.PixelAt(16, 0).italic);
     }
 
     // Test 5: *italic with **bold** inside*
