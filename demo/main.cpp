@@ -8,6 +8,7 @@
 #include "markdown/parser.hpp"
 #include "markdown/editor.hpp"
 #include "markdown/viewer.hpp"
+#include "markdown/theme.hpp"
 
 namespace {
 // Reports min_x=0 so that flex distributes hbox space equally,
@@ -40,6 +41,8 @@ int main() {
 
     // --- State ---
     bool show_scrollbar = true;
+    int theme_index = 0;
+    std::vector<std::string> theme_names = {"Default", "Contrast", "Colorful"};
 
     // --- Editor ---
     markdown::Editor editor;
@@ -112,14 +115,25 @@ int main() {
     cb_option.label = "Scrollbar";
     cb_option.checked = &show_scrollbar;
     auto checkbox = ftxui::Checkbox(cb_option);
+    auto theme_toggle = ftxui::Toggle(&theme_names, &theme_index);
     auto quit_btn = ftxui::Button("Quit", [&] { screen.Exit(); },
                                   ftxui::ButtonOption::Ascii());
-    auto toolbar = ftxui::Container::Horizontal({checkbox, quit_btn});
+    auto toolbar = ftxui::Container::Horizontal(
+        {checkbox, theme_toggle, quit_btn});
 
     // --- Container: FTXUI handles all navigation ---
     auto root = ftxui::Container::Vertical({toolbar, editor_comp, viewer_comp});
 
     auto component = ftxui::Renderer(root, [&] {
+        // Wire theme each frame
+        auto const& theme = (theme_index == 1)
+            ? markdown::theme_high_contrast()
+            : (theme_index == 2)
+                ? markdown::theme_colorful()
+                : markdown::theme_default();
+        editor.set_theme(theme);
+        viewer.set_theme(theme);
+
         // Wire state to viewer each frame
         viewer.set_content(editor.content());
         viewer.show_scrollbar(show_scrollbar);
@@ -150,6 +164,8 @@ int main() {
         auto toolbar_el = ftxui::hbox({
             ftxui::text(" "),
             checkbox->Render(),
+            ftxui::text("  Theme: "),
+            theme_toggle->Render(),
             ftxui::text("  "),
             quit_btn->Render(),
             ftxui::filler(),

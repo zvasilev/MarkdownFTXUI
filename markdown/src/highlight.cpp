@@ -40,9 +40,9 @@ bool is_syntax_at(std::string_view line, size_t pos, size_t marker_end) {
 size_t utf8_glyph_len(char c) { return utf8_byte_length(c); }
 
 // Highlight a single line, returning an Element
-ftxui::Element highlight_line(std::string_view line) {
+ftxui::Element highlight_line(std::string_view line,
+                              ftxui::Decorator syntax_style) {
     ftxui::Elements parts;
-    auto syntax_style = ftxui::color(ftxui::Color::Yellow) | ftxui::dim;
 
     size_t i = 0;
     size_t marker_end = line_marker_end(line);
@@ -86,9 +86,9 @@ ftxui::Element highlight_line(std::string_view line) {
 // for performance, while still handling multi-byte UTF-8 correctly.
 ftxui::Element highlight_line_with_cursor(std::string_view line,
                                           int cursor_idx,
-                                          ftxui::Decorator cursor_style) {
+                                          ftxui::Decorator cursor_style,
+                                          ftxui::Decorator syntax_style) {
     ftxui::Elements parts;
-    auto syntax_style = ftxui::color(ftxui::Color::Yellow) | ftxui::dim;
     size_t marker_end = line_marker_end(line);
 
     std::string normal_buf;
@@ -150,10 +150,11 @@ std::vector<std::string_view> split_lines(std::string_view text) {
 
 } // namespace
 
-ftxui::Element highlight_markdown_syntax(std::string_view text) {
+ftxui::Element highlight_markdown_syntax(std::string_view text,
+                                          Theme const& theme) {
     ftxui::Elements elements;
     for (auto line : split_lines(text)) {
-        elements.push_back(highlight_line(line));
+        elements.push_back(highlight_line(line, theme.syntax));
     }
     if (elements.empty()) {
         return ftxui::text("");
@@ -165,7 +166,8 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
                                               int cursor_position,
                                               bool focused,
                                               bool hovered,
-                                              bool show_line_numbers) {
+                                              bool show_line_numbers,
+                                              Theme const& theme) {
     // Render cursor as inverted character + focus (for frame scrolling).
     // Using focus (hidden terminal cursor) instead of focusCursorBarBlinking
     // avoids terminal cursor flash artifacts between frames.
@@ -195,15 +197,16 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
     int gw = show_line_numbers
         ? markdown::gutter_width(static_cast<int>(lines.size()))
         : 0;
-    auto gutter_style = ftxui::dim;
+    auto gutter_style = theme.gutter;
 
     ftxui::Elements elements;
     for (size_t i = 0; i < lines.size(); ++i) {
         ftxui::Element line_el;
         if (static_cast<int>(i) == cursor_line) {
-            line_el = highlight_line_with_cursor(lines[i], cursor_char, cursor_style);
+            line_el = highlight_line_with_cursor(lines[i], cursor_char,
+                                                    cursor_style, theme.syntax);
         } else {
-            line_el = highlight_line(lines[i]);
+            line_el = highlight_line(lines[i], theme.syntax);
         }
 
         if (show_line_numbers) {

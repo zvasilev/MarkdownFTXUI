@@ -136,7 +136,8 @@ ftxui::Component Editor::component() {
         if (state.is_placeholder) return state.element;
         update_cursor_info();
         auto element = highlight_markdown_with_cursor(
-            _content, _cursor_pos, state.focused, state.hovered, true);
+            _content, _cursor_pos, state.focused, state.hovered, true,
+            *_theme);
         return element | ftxui::reflect(_editor_box);
     };
     auto input = ftxui::Input(&_content, input_option);

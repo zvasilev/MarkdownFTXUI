@@ -7,6 +7,7 @@
 #include <ftxui/screen/box.hpp>
 
 #include "markdown/ast.hpp"
+#include "markdown/theme.hpp"
 
 namespace markdown {
 
@@ -17,7 +18,8 @@ struct LinkTarget {
 
 class DomBuilder {
 public:
-    ftxui::Element build(MarkdownAST const& ast, int focused_link = -1);
+    ftxui::Element build(MarkdownAST const& ast, int focused_link = -1,
+                         Theme const& theme = theme_default());
     std::list<LinkTarget> const& link_targets() const { return _link_targets; }
 
 private:

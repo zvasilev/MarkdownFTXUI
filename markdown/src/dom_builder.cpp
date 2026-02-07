@@ -10,23 +10,24 @@ namespace {
 using Links = std::list<LinkTarget>;
 
 ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
-                          int focused_link);
+                          int focused_link, Theme const& theme);
 
 ftxui::Elements build_children(ASTNode const& node, int depth, Links& links,
-                               int focused_link) {
+                               int focused_link, Theme const& theme) {
     ftxui::Elements result;
     for (auto const& child : node.children) {
-        result.push_back(build_node(child, depth, links, focused_link));
+        result.push_back(build_node(child, depth, links, focused_link, theme));
     }
     return result;
 }
 
 // Collect inline children into a single hbox (for paragraphs, etc.)
 ftxui::Element build_inline_container(ASTNode const& node, int depth,
-                                      Links& links, int focused_link) {
+                                      Links& links, int focused_link,
+                                      Theme const& theme) {
     ftxui::Elements parts;
     for (auto const& child : node.children) {
-        parts.push_back(build_node(child, depth, links, focused_link));
+        parts.push_back(build_node(child, depth, links, focused_link, theme));
     }
     if (parts.empty()) {
         return ftxui::text("");
@@ -43,7 +44,8 @@ ftxui::Element build_inline_container(ASTNode const& node, int depth,
 void collect_inline_words(ASTNode const& node, int depth,
                           ftxui::Elements& words,
                           ftxui::Decorator style,
-                          Links& links, int focused_link) {
+                          Links& links, int focused_link,
+                          Theme const& theme) {
     for (auto const& child : node.children) {
         switch (child.type) {
         case NodeType::Text: {
@@ -58,22 +60,24 @@ void collect_inline_words(ASTNode const& node, int depth,
             break; // flexbox gap handles spacing
         case NodeType::Strong:
             collect_inline_words(child, depth, words,
-                                 style | ftxui::bold, links, focused_link);
+                                 style | ftxui::bold, links, focused_link,
+                                 theme);
             break;
         case NodeType::Emphasis:
             collect_inline_words(child, depth, words,
-                                 style | ftxui::italic, links, focused_link);
+                                 style | ftxui::italic, links, focused_link,
+                                 theme);
             break;
         case NodeType::Link: {
             bool is_focused =
                 (static_cast<int>(links.size()) == focused_link);
             auto link_style = is_focused
                 ? (style | ftxui::underlined | ftxui::inverted)
-                : (style | ftxui::underlined);
+                : (style | ftxui::underlined | theme.link);
             // Collect link words with underline, then wrap in reflect
             size_t before = words.size();
             collect_inline_words(child, depth, words,
-                                 link_style, links, focused_link);
+                                 link_style, links, focused_link, theme);
             // Wrap each word of this link with reflect for click detection
             links.emplace_back(LinkTarget{.url = child.url});
             auto& target = links.back();
@@ -100,11 +104,12 @@ void collect_inline_words(ASTNode const& node, int depth,
             break;
         }
         case NodeType::CodeInline:
-            words.push_back(ftxui::text(child.text) | ftxui::inverted | style);
+            words.push_back(ftxui::text(child.text) | theme.code_inline
+                            | style);
             break;
         default:
-            words.push_back(build_node(child, depth, links, focused_link)
-                            | style);
+            words.push_back(build_node(child, depth, links, focused_link,
+                                       theme) | style);
             break;
         }
     }
@@ -113,11 +118,12 @@ void collect_inline_words(ASTNode const& node, int depth,
 // Wrapping version of build_inline_container for block-level paragraphs.
 // Splits all inline content into word-level flexbox items for line wrapping.
 ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
-                                        Links& links, int focused_link) {
+                                        Links& links, int focused_link,
+                                        Theme const& theme) {
     static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
     ftxui::Elements words;
     collect_inline_words(node, depth, words, ftxui::nothing, links,
-                         focused_link);
+                         focused_link, theme);
     if (words.empty()) return ftxui::text("");
     if (words.size() == 1) return std::move(words[0]);
     return ftxui::flexbox(std::move(words), wrap_config);
@@ -127,7 +133,7 @@ ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
 // subsequent children (nested lists) rendered below with indentation.
 ftxui::Element build_list_item(ASTNode const& node, int depth,
                                std::string const& prefix, Links& links,
-                               int focused_link) {
+                               int focused_link, Theme const& theme) {
     std::string indent(depth * 2, ' ');
 
     ftxui::Elements rows;
@@ -137,7 +143,7 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
                            child.type == NodeType::Text)) {
             // First paragraph: render inline with bullet/number prefix
             auto content = build_inline_container(child, depth, links,
-                                                  focused_link);
+                                                  focused_link, theme);
             rows.push_back(ftxui::hbox({
                 ftxui::text(indent + prefix),
                 content,
@@ -145,7 +151,8 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
             first_para = false;
         } else {
             // Nested lists or additional paragraphs
-            rows.push_back(build_node(child, depth, links, focused_link));
+            rows.push_back(build_node(child, depth, links, focused_link,
+                                      theme));
         }
     }
     if (rows.empty()) {
@@ -158,10 +165,11 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
 }
 
 ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
-                          int focused_link) {
+                          int focused_link, Theme const& theme) {
     switch (node.type) {
     case NodeType::Document: {
-        auto children = build_children(node, depth, links, focused_link);
+        auto children = build_children(node, depth, links, focused_link,
+                                       theme);
         if (children.empty()) {
             return ftxui::text("");
         }
@@ -177,27 +185,25 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
     }
     case NodeType::Heading: {
         auto content = build_inline_container(node, depth, links,
-                                              focused_link);
-        if (node.level == 1) {
-            return content | ftxui::bold | ftxui::underlined;
-        } else if (node.level == 2) {
-            return content | ftxui::bold;
-        } else {
-            return content | ftxui::bold | ftxui::dim;
-        }
+                                              focused_link, theme);
+        if (node.level == 1) return content | theme.heading1;
+        if (node.level == 2) return content | theme.heading2;
+        return content | theme.heading3;
     }
     case NodeType::Paragraph:
-        return build_wrapping_container(node, depth, links, focused_link);
+        return build_wrapping_container(node, depth, links, focused_link,
+                                        theme);
     case NodeType::Strong:
-        return build_inline_container(node, depth, links, focused_link)
-            | ftxui::bold;
+        return build_inline_container(node, depth, links, focused_link,
+                                      theme) | ftxui::bold;
     case NodeType::Emphasis:
-        return build_inline_container(node, depth, links, focused_link)
-            | ftxui::italic;
+        return build_inline_container(node, depth, links, focused_link,
+                                      theme) | ftxui::italic;
     case NodeType::Link: {
         bool is_focused = (static_cast<int>(links.size()) == focused_link);
-        auto el = build_inline_container(node, depth, links, focused_link)
-            | ftxui::underlined;
+        auto el = build_inline_container(node, depth, links, focused_link,
+                                         theme)
+            | ftxui::underlined | theme.link;
         if (is_focused) el = el | ftxui::inverted | ftxui::focus;
         links.emplace_back(LinkTarget{.url = node.url});
         return el | ftxui::reflect(links.back().box);
@@ -206,7 +212,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
         ftxui::Elements items;
         for (auto const& child : node.children) {
             items.push_back(build_list_item(child, depth + 1, "\u2022 ",
-                                            links, focused_link));
+                                            links, focused_link, theme));
         }
         return ftxui::vbox(std::move(items));
     }
@@ -217,24 +223,25 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
             items.push_back(
                 build_list_item(child, depth + 1,
                                 std::to_string(num++) + ". ", links,
-                                focused_link));
+                                focused_link, theme));
         }
         return ftxui::vbox(std::move(items));
     }
     case NodeType::ListItem: {
         // Fallback if ListItem rendered outside of list context
-        return build_list_item(node, depth, "\u2022 ", links, focused_link);
+        return build_list_item(node, depth, "\u2022 ", links, focused_link,
+                               theme);
     }
     case NodeType::BlockQuote: {
         auto content = ftxui::vbox(build_children(node, depth, links,
-                                                  focused_link));
+                                                  focused_link, theme));
         return ftxui::hbox({
             ftxui::text("\u2502 "),
-            content | ftxui::dim,
+            content | theme.blockquote,
         });
     }
     case NodeType::CodeInline:
-        return ftxui::text(node.text) | ftxui::inverted;
+        return ftxui::text(node.text) | theme.code_inline;
     case NodeType::CodeBlock: {
         // Strip trailing newline that cmark-gfm includes in the literal
         std::string code = node.text;
@@ -256,12 +263,14 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
         if (lines.empty()) {
             lines.push_back(ftxui::text(""));
         }
-        return ftxui::vbox(std::move(lines)) | ftxui::border;
+        return ftxui::vbox(std::move(lines)) | theme.code_block
+            | ftxui::border;
     }
     case NodeType::ThematicBreak:
         return ftxui::separator();
     case NodeType::Image: {
-        auto alt = build_inline_container(node, depth, links, focused_link);
+        auto alt = build_inline_container(node, depth, links, focused_link,
+                                          theme);
         return ftxui::hbox({
             ftxui::text("[IMG: ") | ftxui::dim,
             alt,
@@ -282,9 +291,10 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
 
 } // namespace
 
-ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link) {
+ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link,
+                                 Theme const& theme) {
     _link_targets.clear();
-    return build_node(ast, 0, _link_targets, focused_link);
+    return build_node(ast, 0, _link_targets, focused_link, theme);
 }
 
 } // namespace markdown
