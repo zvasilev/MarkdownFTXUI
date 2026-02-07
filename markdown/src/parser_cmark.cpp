@@ -64,6 +64,14 @@ ASTNode convert_node(cmark_node* node) {
     case CMARK_NODE_BLOCK_QUOTE:
         result.type = NodeType::BlockQuote;
         break;
+    case CMARK_NODE_CODE_BLOCK: {
+        result.type = NodeType::CodeBlock;
+        auto const* literal = cmark_node_get_literal(node);
+        if (literal) {
+            result.text = literal;
+        }
+        return result;
+    }
     default:
         // Unsupported node types rendered as plain text
         result.type = NodeType::Paragraph;

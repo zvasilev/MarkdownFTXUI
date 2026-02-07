@@ -79,6 +79,29 @@ ftxui::Element build_node(ASTNode const& node) {
     }
     case NodeType::CodeInline:
         return ftxui::text(node.text) | ftxui::inverted;
+    case NodeType::CodeBlock: {
+        // Strip trailing newline that cmark-gfm includes in the literal
+        std::string code = node.text;
+        if (!code.empty() && code.back() == '\n') {
+            code.pop_back();
+        }
+        // Split into lines for vbox rendering
+        ftxui::Elements lines;
+        size_t start = 0;
+        while (start <= code.size()) {
+            auto end = code.find('\n', start);
+            if (end == std::string::npos) {
+                lines.push_back(ftxui::text(code.substr(start)));
+                break;
+            }
+            lines.push_back(ftxui::text(code.substr(start, end - start)));
+            start = end + 1;
+        }
+        if (lines.empty()) {
+            lines.push_back(ftxui::text(""));
+        }
+        return ftxui::vbox(std::move(lines)) | ftxui::border;
+    }
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:

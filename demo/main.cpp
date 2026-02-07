@@ -22,7 +22,8 @@ int main() {
         "### Todo List\n\n"
         "- Write *code*\n"
         "- Review `tests` carefully\n"
-        "- Read [docs](https://example.com)\n";
+        "- Read [docs](https://example.com)\n\n"
+        "```\nint main() {\n    return 0;\n}\n```\n";
 
     auto parser = markdown::make_cmark_parser();
     markdown::DomBuilder builder;

@@ -45,3 +45,15 @@ add_test(NAME test_quotes COMMAND test_quotes)
 add_executable(test_highlight test_highlight.cpp)
 target_link_libraries(test_highlight PRIVATE markdown-ui)
 add_test(NAME test_highlight COMMAND test_highlight)
+
+add_executable(test_mixed test_mixed.cpp)
+target_link_libraries(test_mixed PRIVATE markdown-ui)
+add_test(NAME test_mixed COMMAND test_mixed)
+
+add_executable(test_edge_cases test_edge_cases.cpp)
+target_link_libraries(test_edge_cases PRIVATE markdown-ui)
+add_test(NAME test_edge_cases COMMAND test_edge_cases)
+
+add_executable(test_unicode test_unicode.cpp)
+target_link_libraries(test_unicode PRIVATE markdown-ui)
+add_test(NAME test_unicode COMMAND test_unicode)

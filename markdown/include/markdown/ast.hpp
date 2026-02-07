@@ -17,6 +17,7 @@ enum class NodeType {
     ListItem,
     BulletList,
     CodeInline,
+    CodeBlock,
     BlockQuote,
     SoftBreak,
     HardBreak,
