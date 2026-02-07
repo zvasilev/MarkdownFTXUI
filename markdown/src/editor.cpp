@@ -168,12 +168,12 @@ ftxui::Component Editor::component() {
         click_x = std::max(0, click_x);
 
         click_y = std::clamp(click_y, 0, static_cast<int>(lines.size()) - 1);
-        // click_x is a visual column — clamp to character count, not byte count
-        int max_col = utf8_char_count(lines[click_y]);
+        // click_x is a visual column — clamp to display width (not char count)
+        int max_col = utf8_display_width(lines[click_y]);
         click_x = std::clamp(click_x, 0, max_col);
 
         // Convert visual column to byte offset within the line
-        size_t byte_x = utf8_char_to_byte(lines[click_y], click_x);
+        size_t byte_x = visual_col_to_byte(lines[click_y], click_x);
 
         int pos = 0;
         for (int i = 0; i < click_y; ++i) {

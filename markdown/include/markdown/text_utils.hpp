@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <vector>
 
@@ -49,6 +50,77 @@ inline int gutter_width(int total_lines) {
 // Total gutter column width: digits + " │ " (3 extra terminal columns).
 inline int gutter_chars(int total_lines) {
     return gutter_width(total_lines) + 3;
+}
+
+// Decode a UTF-8 codepoint starting at data, returning the codepoint value.
+inline uint32_t utf8_codepoint(const char* data, size_t len) {
+    auto b = static_cast<unsigned char>(data[0]);
+    if (b < 0x80) return b;
+    if (b < 0xE0 && len >= 2)
+        return ((b & 0x1F) << 6) | (static_cast<unsigned char>(data[1]) & 0x3F);
+    if (b < 0xF0 && len >= 3)
+        return ((b & 0x0F) << 12) |
+               ((static_cast<unsigned char>(data[1]) & 0x3F) << 6) |
+               (static_cast<unsigned char>(data[2]) & 0x3F);
+    if (len >= 4)
+        return ((b & 0x07) << 18) |
+               ((static_cast<unsigned char>(data[1]) & 0x3F) << 12) |
+               ((static_cast<unsigned char>(data[2]) & 0x3F) << 6) |
+               (static_cast<unsigned char>(data[3]) & 0x3F);
+    return b; // fallback
+}
+
+// Terminal display width of a Unicode codepoint.
+// Returns 2 for CJK Unified Ideographs, Fullwidth forms, and other
+// East Asian Wide characters; 1 otherwise.
+inline int codepoint_width(uint32_t cp) {
+    // CJK Unified Ideographs
+    if (cp >= 0x4E00 && cp <= 0x9FFF) return 2;
+    // CJK Extension A
+    if (cp >= 0x3400 && cp <= 0x4DBF) return 2;
+    // CJK Compatibility Ideographs
+    if (cp >= 0xF900 && cp <= 0xFAFF) return 2;
+    // Fullwidth Forms
+    if (cp >= 0xFF01 && cp <= 0xFF60) return 2;
+    if (cp >= 0xFFE0 && cp <= 0xFFE6) return 2;
+    // CJK Extension B-F and Supplement
+    if (cp >= 0x20000 && cp <= 0x2FA1F) return 2;
+    // Hangul Syllables
+    if (cp >= 0xAC00 && cp <= 0xD7AF) return 2;
+    // CJK Radicals, Kangxi, Ideographic Description
+    if (cp >= 0x2E80 && cp <= 0x303E) return 2;
+    // Katakana, Hiragana, Bopomofo
+    if (cp >= 0x3040 && cp <= 0x33FF) return 2;
+    return 1;
+}
+
+// Total terminal display width of a UTF-8 string.
+inline int utf8_display_width(std::string_view text) {
+    int width = 0;
+    size_t i = 0;
+    while (i < text.size()) {
+        size_t len = utf8_byte_length(text[i]);
+        len = std::min(len, text.size() - i);
+        uint32_t cp = utf8_codepoint(text.data() + i, len);
+        width += codepoint_width(cp);
+        i += len;
+    }
+    return width;
+}
+
+// Map a terminal visual column (0-based) to a byte offset within text.
+// Accounts for wide characters that occupy 2 terminal columns.
+inline size_t visual_col_to_byte(std::string_view text, int col) {
+    size_t byte_pos = 0;
+    int visual = 0;
+    while (byte_pos < text.size() && visual < col) {
+        size_t len = utf8_byte_length(text[byte_pos]);
+        len = std::min(len, text.size() - byte_pos);
+        uint32_t cp = utf8_codepoint(text.data() + byte_pos, len);
+        visual += codepoint_width(cp);
+        byte_pos += len;
+    }
+    return byte_pos;
 }
 
 // Split text into lines (without newline characters).

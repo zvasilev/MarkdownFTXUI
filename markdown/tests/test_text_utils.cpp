@@ -79,5 +79,39 @@ int main() {
     ASSERT_EQ(gutter_chars(10), 5);  // 2 digits + " │ " = 5
     ASSERT_EQ(gutter_chars(100), 6); // 3 digits + " │ " = 6
 
+    // --- codepoint_width ---
+
+    ASSERT_EQ(codepoint_width('A'), 1);
+    ASSERT_EQ(codepoint_width(0x00E9), 1);  // é — Latin
+    // CJK Unified Ideograph U+4E16 (世)
+    ASSERT_EQ(codepoint_width(0x4E16), 2);
+    // Fullwidth exclamation U+FF01
+    ASSERT_EQ(codepoint_width(0xFF01), 2);
+    // Hangul syllable U+AC00
+    ASSERT_EQ(codepoint_width(0xAC00), 2);
+
+    // --- utf8_display_width ---
+
+    ASSERT_EQ(utf8_display_width(""), 0);
+    ASSERT_EQ(utf8_display_width("hello"), 5);
+    // "世界" = 2 wide chars = 4 columns
+    ASSERT_EQ(utf8_display_width("\xE4\xB8\x96\xE7\x95\x8C"), 4);
+    // "a世b" = 1 + 2 + 1 = 4 columns
+    ASSERT_EQ(utf8_display_width("a\xE4\xB8\x96""b"), 4);
+    // café: c(1) a(1) f(1) é(1) = 4 columns (all narrow)
+    ASSERT_EQ(utf8_display_width("caf\xC3\xA9"), 4);
+
+    // --- visual_col_to_byte ---
+
+    // ASCII: col=byte
+    ASSERT_EQ(visual_col_to_byte("hello", 0), 0u);
+    ASSERT_EQ(visual_col_to_byte("hello", 3), 3u);
+    // "a世b": col 0='a'(byte 0), col 1='世'(byte 1), col 3='b'(byte 4)
+    ASSERT_EQ(visual_col_to_byte("a\xE4\xB8\x96""b", 0), 0u);
+    ASSERT_EQ(visual_col_to_byte("a\xE4\xB8\x96""b", 1), 1u);
+    ASSERT_EQ(visual_col_to_byte("a\xE4\xB8\x96""b", 3), 4u);
+    // col 2 is inside '世' — should land at byte 4 (past the wide char)
+    ASSERT_EQ(visual_col_to_byte("a\xE4\xB8\x96""b", 2), 4u);
+
     return 0;
 }
