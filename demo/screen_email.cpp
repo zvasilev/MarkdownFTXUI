@@ -1,12 +1,12 @@
 #include "screens.hpp"
 #include "common.hpp"
 
-#include <algorithm>
+#include <memory>
 
 #include <ftxui/component/event.hpp>
 
-#include "markdown/dom_builder.hpp"
 #include "markdown/parser.hpp"
+#include "markdown/viewer.hpp"
 
 namespace {
 
@@ -52,70 +52,90 @@ ftxui::Component make_email_screen(
     int& current_screen, int& theme_index,
     std::vector<std::string>& theme_names) {
 
-    auto parser = markdown::make_cmark_parser();
-    auto builder = std::make_shared<markdown::DomBuilder>();
-    auto ast = std::make_shared<markdown::MarkdownAST>(
-        parser->parse(email_body));
+    auto viewer = std::make_shared<markdown::Viewer>(
+        markdown::make_cmark_parser());
+    viewer->set_content(email_body);
+    viewer->set_embed(true);  // caller handles framing for combined scroll
 
-    auto scroll = std::make_shared<float>(0.0f);
-    auto focused_link = std::make_shared<int>(-1);
-    auto link_url = std::make_shared<std::string>();
+    // Register external focusable items (headers in the Tab ring)
+    viewer->add_focusable("From", "Alice <alice@example.com>");
+    viewer->add_focusable("To", "team@example.com");
+    viewer->add_focusable("Subject", "Sprint Review Notes - Week 42");
+    viewer->add_focusable("Date", "Fri, 7 Feb 2026 15:30:00 +0200");
 
-    auto renderer = ftxui::Renderer(
-        ftxui::Make<demo::FocusableBase>(),
-        [=, &theme_index] {
-            auto const& theme = demo::get_theme(theme_index);
-            auto body = builder->build(*ast, *focused_link, theme);
+    auto status_text = std::make_shared<std::string>();
 
-            auto email_el = ftxui::vbox({
-                ftxui::hbox({
-                    ftxui::text("From: ") | ftxui::bold,
-                    ftxui::text("Alice <alice@example.com>"),
-                }),
-                ftxui::hbox({
-                    ftxui::text("To: ") | ftxui::bold,
-                    ftxui::text("team@example.com"),
-                }),
-                ftxui::hbox({
-                    ftxui::text("Subject: ") | ftxui::bold,
-                    ftxui::text("Sprint Review Notes - Week 42"),
-                }),
-                ftxui::hbox({
-                    ftxui::text("Date: ") | ftxui::bold,
-                    ftxui::text("Fri, 7 Feb 2026 15:30:00 +0200"),
-                }),
-                ftxui::separator(),
-                body,
-            });
-
-            return email_el
-                | ftxui::focusPositionRelative(0.0f, *scroll)
-                | ftxui::vscroll_indicator
-                | ftxui::yframe
-                | ftxui::flex;
+    viewer->on_link_click(
+        [status_text](std::string const& value, markdown::LinkEvent) {
+            *status_text = value;
         });
 
-    auto with_keys = ftxui::CatchEvent(renderer,
-        [=, &theme_index](ftxui::Event ev) {
-            if (ev == ftxui::Event::Tab) {
-                auto const& targets = builder->link_targets();
-                int count = static_cast<int>(targets.size());
-                if (count > 0) {
-                    *focused_link = (*focused_link + 1) % count;
-                    *link_url = targets[*focused_link].url;
+    auto viewer_comp = viewer->component();
+
+    auto screen = ftxui::Renderer(viewer_comp,
+        [=, &theme_index, &theme_names] {
+            viewer->set_theme(demo::get_theme(theme_index));
+
+            auto const& ext = viewer->externals();
+            ftxui::Elements header_rows;
+            for (int i = 0; i < static_cast<int>(ext.size()); ++i) {
+                auto content = ftxui::hbox({
+                    ftxui::text(ext[i].label + ": ") | ftxui::bold,
+                    ftxui::text(ext[i].value),
+                });
+                if (viewer->is_external_focused(i)) {
+                    header_rows.push_back(ftxui::hbox({
+                        ftxui::text("["),
+                        content,
+                        ftxui::text("]"),
+                    }));
+                } else {
+                    header_rows.push_back(ftxui::hbox({
+                        ftxui::text(" "),
+                        content,
+                        ftxui::text(" "),
+                    }));
                 }
-                return true;
             }
-            if (ev == ftxui::Event::TabReverse) {
-                auto const& targets = builder->link_targets();
-                int count = static_cast<int>(targets.size());
-                if (count > 0) {
-                    *focused_link =
-                        (*focused_link - 1 + count) % count;
-                    *link_url = targets[*focused_link].url;
-                }
-                return true;
+            header_rows.push_back(ftxui::separator());
+            header_rows.push_back(viewer_comp->Render());
+
+            // Wrap headers + body in a single scrollable frame.
+            // Use direct_scroll (not yframe) for linear scroll offset.
+            auto combined = ftxui::vbox(std::move(header_rows))
+                | ftxui::vscroll_indicator;
+            if (!viewer->is_link_focused()) {
+                combined = demo::direct_scroll(std::move(combined),
+                                               viewer->scroll());
+            } else {
+                // Link focused: yframe scrolls to the ftxui::focus element
+                combined = combined | ftxui::yframe;
             }
+            combined = combined | ftxui::flex;
+
+            return ftxui::vbox({
+                ftxui::hbox({
+                    ftxui::text("  Theme: ") | ftxui::dim,
+                    ftxui::text(theme_names[theme_index]) | ftxui::bold,
+                    ftxui::filler(),
+                }),
+                combined | ftxui::border,
+                ftxui::hbox({
+                    status_text->empty()
+                        ? ftxui::text("")
+                        : ftxui::text(" " + *status_text + " ")
+                            | ftxui::dim | ftxui::underlined,
+                    ftxui::filler(),
+                    ftxui::text(
+                        " Tab:cycle  Up/Down:scroll  Left/Right:theme  Esc:back ")
+                        | ftxui::dim,
+                }),
+            });
+        });
+
+    // Theme cycling + Esc → menu
+    return ftxui::CatchEvent(screen,
+        [=, &current_screen, &theme_index](ftxui::Event ev) {
             if (ev == ftxui::Event::ArrowLeft) {
                 theme_index = (theme_index + 2) % 3;
                 return true;
@@ -124,42 +144,6 @@ ftxui::Component make_email_screen(
                 theme_index = (theme_index + 1) % 3;
                 return true;
             }
-            if (ev == ftxui::Event::ArrowDown) {
-                *scroll = std::min(1.0f, *scroll + 0.05f);
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowUp) {
-                *scroll = std::max(0.0f, *scroll - 0.05f);
-                return true;
-            }
-            return false;
-        });
-
-    auto screen = ftxui::Renderer(with_keys,
-        [=, &theme_index, &theme_names] {
-            return ftxui::vbox({
-                ftxui::hbox({
-                    ftxui::text("  Theme: ") | ftxui::dim,
-                    ftxui::text(theme_names[theme_index]) | ftxui::bold,
-                    ftxui::filler(),
-                }),
-                with_keys->Render()
-                    | ftxui::border | ftxui::flex,
-                ftxui::hbox({
-                    link_url->empty()
-                        ? ftxui::text("")
-                        : ftxui::text(" " + *link_url + " ")
-                            | ftxui::dim | ftxui::underlined,
-                    ftxui::filler(),
-                    ftxui::text(
-                        " Tab:links  Up/Down:scroll  Left/Right:theme  Esc:back ")
-                        | ftxui::dim,
-                }),
-            });
-        });
-
-    return ftxui::CatchEvent(screen,
-        [&current_screen](ftxui::Event ev) {
             if (ev == ftxui::Event::Escape) {
                 current_screen = 0;
                 return true;

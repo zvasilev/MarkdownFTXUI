@@ -28,30 +28,69 @@ void Viewer::on_link_click(
     _link_callback = std::move(callback);
 }
 
+void Viewer::add_focusable(std::string label, std::string value) {
+    _externals.push_back({std::move(label), std::move(value)});
+}
+
+void Viewer::clear_focusables() {
+    _externals.clear();
+    _focus_index = -1;
+}
+
+bool Viewer::is_external_focused(int external_index) const {
+    return _focus_index >= 0 &&
+           _focus_index == external_index &&
+           external_index < static_cast<int>(_externals.size());
+}
+
+std::string Viewer::focused_value() const {
+    if (_focus_index < 0) return {};
+    int ext_n = static_cast<int>(_externals.size());
+    if (_focus_index < ext_n) {
+        return _externals[_focus_index].value;
+    }
+    int link_idx = _focus_index - ext_n;
+    auto const& targets = _builder.link_targets();
+    if (link_idx < static_cast<int>(targets.size())) {
+        return targets[link_idx].url;
+    }
+    return {};
+}
+
+bool Viewer::is_link_focused() const {
+    return _focus_index >= static_cast<int>(_externals.size()) &&
+           _focus_index >= 0;
+}
+
 // Wrapper with built-in scroll and link navigation for the viewer.
-// When active: Tab/Shift+Tab cycle links, Enter presses focused link,
-// ArrowUp/Down scroll, Esc deactivates.
-// When inactive: all keyboard unhandled -> container navigates.
+// Two modes:
+//   Tab ring (externals registered): Tab/arrows always work, no Enter gate.
+//   Normal (no externals): Enter activates, Esc deactivates.
 namespace {
 class ViewerWrap : public ftxui::ComponentBase {
     bool& _active;
     float& _scroll_ratio;
-    int& _focused_link;
+    int& _focus_index;
     DomBuilder& _builder;
+    std::vector<ExternalFocusable>& _externals;
     std::function<void(std::string const&, LinkEvent)>& _link_callback;
 public:
     ViewerWrap(ftxui::Component child, bool& active, float& scroll,
-               int& focused_link, DomBuilder& builder,
+               int& focus_index, DomBuilder& builder,
+               std::vector<ExternalFocusable>& externals,
                std::function<void(std::string const&, LinkEvent)>& link_cb)
         : _active(active), _scroll_ratio(scroll),
-          _focused_link(focused_link), _builder(builder),
-          _link_callback(link_cb) {
+          _focus_index(focus_index), _builder(builder),
+          _externals(externals), _link_callback(link_cb) {
         Add(std::move(child));
     }
 
     bool Focusable() const override { return true; }
 
     bool OnEvent(ftxui::Event event) override {
+        bool has_ring = !_externals.empty();
+
+        // Mouse: activate + take focus (both modes)
         if (event.is_mouse()) {
             if (event.mouse().button == ftxui::Mouse::Left &&
                 event.mouse().motion == ftxui::Mouse::Pressed) {
@@ -60,42 +99,17 @@ public:
             }
             return ComponentBase::OnEvent(event);
         }
-        if (_active) {
-            if (event == ftxui::Event::Escape) {
-                _active = false;
-                _focused_link = -1;
-                return true;
-            }
-            // Tab cycles forward through links
+
+        // --- Tab ring mode (externals registered) ---
+        if (has_ring) {
             if (event == ftxui::Event::Tab) {
-                int count = static_cast<int>(
-                    _builder.link_targets().size());
-                if (count > 0) {
-                    _focused_link = (_focused_link + 1) % count;
-                    notify_link(LinkEvent::Focus);
-                }
+                cycle_focus(+1);
                 return true;
             }
-            // Shift+Tab cycles backward through links
             if (event == ftxui::Event::TabReverse) {
-                int count = static_cast<int>(
-                    _builder.link_targets().size());
-                if (count > 0) {
-                    _focused_link =
-                        (_focused_link - 1 + count) % count;
-                    notify_link(LinkEvent::Focus);
-                }
+                cycle_focus(-1);
                 return true;
             }
-            // Enter presses the focused link
-            if (event == ftxui::Event::Return) {
-                if (_focused_link >= 0) {
-                    notify_link(LinkEvent::Press);
-                    return true;
-                }
-                return false;
-            }
-            // Arrow up/down scroll the viewer
             if (event == ftxui::Event::ArrowUp) {
                 _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
                 return true;
@@ -104,7 +118,49 @@ public:
                 _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
                 return true;
             }
-            // Everything else (including left/right) -> unhandled -> navigate
+            if (event == ftxui::Event::Return) {
+                if (_focus_index >= 0) {
+                    notify_focus(LinkEvent::Press);
+                }
+                return true;
+            }
+            if (event == ftxui::Event::Escape) {
+                _focus_index = -1;
+                return false;  // let parent handle (e.g. go to menu)
+            }
+            return false;
+        }
+
+        // --- Normal mode (no externals, existing behavior) ---
+        if (_active) {
+            if (event == ftxui::Event::Escape) {
+                _active = false;
+                _focus_index = -1;
+                return true;
+            }
+            if (event == ftxui::Event::Tab) {
+                cycle_focus(+1);
+                return true;
+            }
+            if (event == ftxui::Event::TabReverse) {
+                cycle_focus(-1);
+                return true;
+            }
+            if (event == ftxui::Event::Return) {
+                if (_focus_index >= 0) {
+                    notify_focus(LinkEvent::Press);
+                    return true;
+                }
+                return false;
+            }
+            if (event == ftxui::Event::ArrowUp) {
+                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
+                return true;
+            }
+            if (event == ftxui::Event::ArrowDown) {
+                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
+                return true;
+            }
             return false;
         }
         if (event == ftxui::Event::Return) {
@@ -115,12 +171,29 @@ public:
     }
 
 private:
-    void notify_link(LinkEvent event) {
-        if (_focused_link < 0) return;
-        auto const& targets = _builder.link_targets();
-        if (_focused_link >= static_cast<int>(targets.size())) return;
+    void cycle_focus(int direction) {
+        int ext_n = static_cast<int>(_externals.size());
+        int link_n = static_cast<int>(_builder.link_targets().size());
+        int total = ext_n + link_n;
+        if (total == 0) return;
+        _focus_index = (_focus_index + direction + total) % total;
+        notify_focus(LinkEvent::Focus);
+    }
+
+    void notify_focus(LinkEvent event) {
+        if (_focus_index < 0) return;
+        int ext_n = static_cast<int>(_externals.size());
+        std::string value;
+        if (_focus_index < ext_n) {
+            value = _externals[_focus_index].value;
+        } else {
+            int link_idx = _focus_index - ext_n;
+            auto const& targets = _builder.link_targets();
+            if (link_idx >= static_cast<int>(targets.size())) return;
+            value = targets[link_idx].url;
+        }
         if (_link_callback) {
-            _link_callback(targets[_focused_link].url, event);
+            _link_callback(value, event);
         }
     }
 };
@@ -135,6 +208,16 @@ ftxui::Component Viewer::component() {
             _cached_ast = _parser->parse(_content);
             _parsed_gen = _content_gen;
         }
+
+        // Derive _focused_link from unified _focus_index
+        int ext_n = static_cast<int>(_externals.size());
+        int link_n = static_cast<int>(_builder.link_targets().size());
+        int total = ext_n + link_n;
+        if (_focus_index >= total) {
+            _focus_index = total > 0 ? total - 1 : -1;
+        }
+        _focused_link = (_focus_index >= ext_n) ? _focus_index - ext_n : -1;
+
         // Rebuild element when content, focused link, or theme changes
         if (_parsed_gen != _built_gen ||
             _focused_link != _last_focused_link ||
@@ -146,6 +229,10 @@ ftxui::Component Viewer::component() {
             _built_theme_gen = _theme_gen;
         }
         auto el = _cached_element;
+
+        // Embed mode: return raw element; caller handles framing.
+        if (_embed) return el;
+
         // When a link is focused, ftxui::focus on it handles scrolling via
         // yframe. Otherwise use the manual scroll ratio.
         if (_focused_link < 0) {
@@ -177,8 +264,8 @@ ftxui::Component Viewer::component() {
 
     // Wrap with active + scroll + link navigation behavior
     _component = std::make_shared<ViewerWrap>(
-        inner, _active, _scroll_ratio, _focused_link,
-        _builder, _link_callback);
+        inner, _active, _scroll_ratio, _focus_index,
+        _builder, _externals, _link_callback);
     return _component;
 }
 
