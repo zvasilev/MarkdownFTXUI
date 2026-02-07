@@ -48,7 +48,12 @@ ASTNode convert_node(cmark_node* node) {
         break;
     }
     case CMARK_NODE_LIST:
-        result.type = NodeType::BulletList;
+        if (cmark_node_get_list_type(node) == CMARK_ORDERED_LIST) {
+            result.type = NodeType::OrderedList;
+            result.list_start = cmark_node_get_list_start(node);
+        } else {
+            result.type = NodeType::BulletList;
+        }
         break;
     case CMARK_NODE_ITEM:
         result.type = NodeType::ListItem;
@@ -64,6 +69,33 @@ ASTNode convert_node(cmark_node* node) {
     case CMARK_NODE_BLOCK_QUOTE:
         result.type = NodeType::BlockQuote;
         break;
+    case CMARK_NODE_THEMATIC_BREAK:
+        result.type = NodeType::ThematicBreak;
+        return result;
+    case CMARK_NODE_IMAGE: {
+        result.type = NodeType::Image;
+        auto const* url = cmark_node_get_url(node);
+        if (url) {
+            result.url = url;
+        }
+        break; // children become alt text
+    }
+    case CMARK_NODE_HTML_INLINE: {
+        result.type = NodeType::Text;
+        auto const* literal = cmark_node_get_literal(node);
+        if (literal) {
+            result.text = literal;
+        }
+        return result;
+    }
+    case CMARK_NODE_HTML_BLOCK: {
+        result.type = NodeType::Text;
+        auto const* literal = cmark_node_get_literal(node);
+        if (literal) {
+            result.text = literal;
+        }
+        return result;
+    }
     case CMARK_NODE_CODE_BLOCK: {
         result.type = NodeType::CodeBlock;
         auto const* literal = cmark_node_get_literal(node);

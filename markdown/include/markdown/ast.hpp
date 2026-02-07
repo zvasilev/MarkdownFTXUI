@@ -16,11 +16,14 @@ enum class NodeType {
     Link,
     ListItem,
     BulletList,
+    OrderedList,
     CodeInline,
     CodeBlock,
     BlockQuote,
     SoftBreak,
     HardBreak,
+    ThematicBreak,
+    Image,
 };
 
 struct ASTNode {
@@ -28,6 +31,7 @@ struct ASTNode {
     std::string text;
     std::string url;
     int level = 0;
+    int list_start = 1;
     std::vector<ASTNode> children;
 };
 

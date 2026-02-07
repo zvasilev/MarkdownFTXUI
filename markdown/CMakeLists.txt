@@ -6,7 +6,10 @@ add_library(markdown-ui
     src/highlight.cpp
 )
 
-target_include_directories(markdown-ui PUBLIC include)
+target_include_directories(markdown-ui PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 target_compile_definitions(markdown-ui PRIVATE CMARK_GFM_STATIC_DEFINE)
 
@@ -26,3 +29,22 @@ target_link_libraries(markdown-ui
 )
 
 add_subdirectory(tests)
+
+# --- Install targets ---
+include(GNUInstallDirs)
+
+install(TARGETS markdown-ui
+    EXPORT markdown-ui-targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(DIRECTORY include/markdown
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT markdown-ui-targets
+    FILE markdown-ui-config.cmake
+    NAMESPACE markdown::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/markdown-ui
+)

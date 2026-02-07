@@ -132,5 +132,56 @@ int main() {
         ftxui::Render(screen, element);
     }
 
+    // Test 12: Thematic break (horizontal rule)
+    {
+        auto ast = parser->parse("above\n\n---\n\nbelow");
+        bool found_break = false;
+        for (auto const& child : ast.children) {
+            if (child.type == NodeType::ThematicBreak) found_break = true;
+        }
+        ASSERT_TRUE(found_break);
+
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(5));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "above");
+        ASSERT_CONTAINS(output, "below");
+    }
+
+    // Test 13: Image parsed as Image node
+    {
+        auto ast = parser->parse("![alt text](https://example.com/img.png)");
+        auto& para = ast.children[0]; // Paragraph wrapping inline image
+        bool found_image = false;
+        for (auto const& child : para.children) {
+            if (child.type == NodeType::Image) {
+                found_image = true;
+                ASSERT_CONTAINS(child.url, "example.com");
+            }
+        }
+        ASSERT_TRUE(found_image);
+
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(1));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "alt text");
+    }
+
+    // Test 14: HTML inline rendered as text
+    {
+        auto ast = parser->parse("before <b>html</b> after");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(1));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "before");
+        ASSERT_CONTAINS(output, "after");
+    }
+
     return 0;
 }

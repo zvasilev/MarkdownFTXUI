@@ -3,21 +3,21 @@
 namespace markdown {
 namespace {
 
-ftxui::Element build_node(ASTNode const& node);
+ftxui::Element build_node(ASTNode const& node, int depth = 0);
 
-ftxui::Elements build_children(ASTNode const& node) {
+ftxui::Elements build_children(ASTNode const& node, int depth) {
     ftxui::Elements result;
     for (auto const& child : node.children) {
-        result.push_back(build_node(child));
+        result.push_back(build_node(child, depth));
     }
     return result;
 }
 
 // Collect inline children into a single hbox (for paragraphs, etc.)
-ftxui::Element build_inline_container(ASTNode const& node) {
+ftxui::Element build_inline_container(ASTNode const& node, int depth) {
     ftxui::Elements parts;
     for (auto const& child : node.children) {
-        parts.push_back(build_node(child));
+        parts.push_back(build_node(child, depth));
     }
     if (parts.empty()) {
         return ftxui::text("");
@@ -28,19 +28,51 @@ ftxui::Element build_inline_container(ASTNode const& node) {
     return ftxui::hbox(std::move(parts));
 }
 
-ftxui::Element build_node(ASTNode const& node) {
+// Build a ListItem: first Paragraph gets bullet/number prefix,
+// subsequent children (nested lists) rendered below with indentation.
+ftxui::Element build_list_item(ASTNode const& node, int depth,
+                               std::string const& prefix) {
+    std::string indent(depth * 2, ' ');
+
+    ftxui::Elements rows;
+    bool first_para = true;
+    for (auto const& child : node.children) {
+        if (first_para && (child.type == NodeType::Paragraph ||
+                           child.type == NodeType::Text)) {
+            // First paragraph: render inline with bullet/number prefix
+            auto content = build_inline_container(child, depth);
+            rows.push_back(ftxui::hbox({
+                ftxui::text(indent + prefix),
+                content,
+            }));
+            first_para = false;
+        } else {
+            // Nested lists or additional paragraphs
+            rows.push_back(build_node(child, depth));
+        }
+    }
+    if (rows.empty()) {
+        return ftxui::text(indent + prefix);
+    }
+    if (rows.size() == 1) {
+        return std::move(rows[0]);
+    }
+    return ftxui::vbox(std::move(rows));
+}
+
+ftxui::Element build_node(ASTNode const& node, int depth) {
     switch (node.type) {
     case NodeType::Document: {
-        auto children = build_children(node);
+        auto children = build_children(node, depth);
         if (children.empty()) {
             return ftxui::text("");
         }
         return ftxui::vbox(std::move(children));
     }
     case NodeType::Heading: {
-        auto content = build_inline_container(node);
+        auto content = build_inline_container(node, depth);
         if (node.level == 1) {
-            return content | ftxui::bold;
+            return content | ftxui::bold | ftxui::underlined;
         } else if (node.level == 2) {
             return content | ftxui::bold;
         } else {
@@ -48,30 +80,36 @@ ftxui::Element build_node(ASTNode const& node) {
         }
     }
     case NodeType::Paragraph:
-        return build_inline_container(node);
+        return build_inline_container(node, depth);
     case NodeType::Strong:
-        return build_inline_container(node) | ftxui::bold;
+        return build_inline_container(node, depth) | ftxui::bold;
     case NodeType::Emphasis:
-        return build_inline_container(node) | ftxui::italic;
+        return build_inline_container(node, depth) | ftxui::italic;
     case NodeType::Link:
-        return build_inline_container(node) | ftxui::underlined;
+        return build_inline_container(node, depth) | ftxui::underlined;
     case NodeType::BulletList: {
         ftxui::Elements items;
         for (auto const& child : node.children) {
-            items.push_back(build_node(child));
+            items.push_back(build_list_item(child, depth + 1, "\u2022 "));
+        }
+        return ftxui::vbox(std::move(items));
+    }
+    case NodeType::OrderedList: {
+        ftxui::Elements items;
+        int num = node.list_start;
+        for (auto const& child : node.children) {
+            items.push_back(
+                build_list_item(child, depth + 1,
+                                std::to_string(num++) + ". "));
         }
         return ftxui::vbox(std::move(items));
     }
     case NodeType::ListItem: {
-        // ListItem contains Paragraph children; render inline with bullet prefix
-        auto content = build_inline_container(node);
-        return ftxui::hbox({
-            ftxui::text("  \u2022 "),
-            content,
-        });
+        // Fallback if ListItem rendered outside of list context
+        return build_list_item(node, depth, "\u2022 ");
     }
     case NodeType::BlockQuote: {
-        auto content = ftxui::vbox(build_children(node));
+        auto content = ftxui::vbox(build_children(node, depth));
         return ftxui::hbox({
             ftxui::text("\u2502 "),
             content | ftxui::dim,
@@ -101,6 +139,16 @@ ftxui::Element build_node(ASTNode const& node) {
             lines.push_back(ftxui::text(""));
         }
         return ftxui::vbox(std::move(lines)) | ftxui::border;
+    }
+    case NodeType::ThematicBreak:
+        return ftxui::separator();
+    case NodeType::Image: {
+        auto alt = build_inline_container(node, depth);
+        return ftxui::hbox({
+            ftxui::text("[IMG: ") | ftxui::dim,
+            alt,
+            ftxui::text("]") | ftxui::dim,
+        });
     }
     case NodeType::Text:
         return ftxui::text(node.text);

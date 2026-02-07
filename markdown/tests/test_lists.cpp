@@ -67,15 +67,47 @@ int main() {
         ASSERT_EQ(ast.children[0].children.size(), 2u);
     }
 
-    // Test 6: Nested list input degrades gracefully (no crash)
+    // Test 6: Nested list renders with indentation
     {
         auto ast = parser->parse("- outer\n  - inner");
         auto element = builder.build(ast);
         auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
                                             ftxui::Dimension::Fixed(4));
         ftxui::Render(screen, element);
-        // Just verify no crash
-        ASSERT_TRUE(true);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "outer");
+        ASSERT_CONTAINS(output, "inner");
+    }
+
+    // Test 7: Ordered list parsed correctly
+    {
+        auto ast = parser->parse("1. first\n2. second\n3. third");
+        ASSERT_EQ(ast.children.size(), 1u);
+        auto& list = ast.children[0];
+        ASSERT_EQ(list.type, NodeType::OrderedList);
+        ASSERT_EQ(list.list_start, 1);
+        ASSERT_EQ(list.children.size(), 3u);
+    }
+
+    // Test 8: Ordered list renders with numbers
+    {
+        auto ast = parser->parse("1. first\n2. second");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(2));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "1.");
+        ASSERT_CONTAINS(output, "first");
+        ASSERT_CONTAINS(output, "2.");
+        ASSERT_CONTAINS(output, "second");
+    }
+
+    // Test 9: Ordered list with custom start
+    {
+        auto ast = parser->parse("3. alpha\n4. beta");
+        ASSERT_EQ(ast.children[0].type, NodeType::OrderedList);
+        ASSERT_EQ(ast.children[0].list_start, 3);
     }
 
     return 0;
