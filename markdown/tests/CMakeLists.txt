@@ -85,3 +85,7 @@ add_test(NAME test_dom_focus COMMAND test_dom_focus)
 add_executable(test_external_focusable test_external_focusable.cpp)
 target_link_libraries(test_external_focusable PRIVATE markdown-ui)
 add_test(NAME test_external_focusable COMMAND test_external_focusable)
+
+add_executable(test_scroll_frame test_scroll_frame.cpp)
+target_link_libraries(test_scroll_frame PRIVATE markdown-ui)
+add_test(NAME test_scroll_frame COMMAND test_scroll_frame)
