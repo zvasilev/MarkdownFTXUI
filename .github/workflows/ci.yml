@@ -1,10 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:  # manual trigger only — re-enable push/PR triggers when public
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 jobs:
   build:
