@@ -95,3 +95,7 @@ target_link_libraries(test_snippets PRIVATE markdown-ui)
 target_compile_definitions(test_snippets PRIVATE
     SNIPPETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/snippets")
 add_test(NAME test_snippets COMMAND test_snippets)
+
+add_executable(test_stress test_stress.cpp)
+target_link_libraries(test_stress PRIVATE markdown-ui)
+add_test(NAME test_stress COMMAND test_stress)
