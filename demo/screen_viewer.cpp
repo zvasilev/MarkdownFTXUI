@@ -35,7 +35,7 @@ const std::string viewer_content =
     "4. Deploy to production\n\n"
     "---\n\n"
     "## Code Block\n\n"
-    "```\nstruct Config {\n"
+    "```cpp\nstruct Config {\n"
     "    std::string name;\n"
     "    int value = 42;\n"
     "    bool enabled = true;\n};\n```\n\n"

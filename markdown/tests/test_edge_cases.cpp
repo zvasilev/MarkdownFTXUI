@@ -183,5 +183,39 @@ int main() {
         ASSERT_CONTAINS(output, "after");
     }
 
+    // Test 15: Blockquote at max depth — no crash, fallback renders
+    {
+        builder.set_max_quote_depth(2);
+        auto ast = parser->parse("> level 1\n> > level 2\n> > > level 3");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(6));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "level 1");
+        // Level 3 exceeds max depth but should still render (as fallback)
+        builder.set_max_quote_depth(10); // reset
+    }
+
+    // Test 16: Link with empty URL — empty url string
+    {
+        auto ast = parser->parse("[text]()");
+        auto& para = ast.children[0];
+        ASSERT_EQ(para.children[0].type, NodeType::Link);
+        ASSERT_TRUE(para.children[0].url.empty());
+        ASSERT_EQ(para.children[0].children[0].text, "text");
+    }
+
+    // Test 17: Very long single word (no spaces) — no crash in flexbox
+    {
+        std::string long_word(500, 'W');
+        auto ast = parser->parse(long_word);
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(10));
+        ftxui::Render(screen, element);
+        // Verify no crash; content may be clipped
+    }
+
     return 0;
 }

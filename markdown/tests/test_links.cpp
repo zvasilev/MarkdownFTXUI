@@ -99,5 +99,52 @@ int main() {
         ASSERT_TRUE(pixel.foreground_color == ftxui::Color::Blue);
     }
 
+    // Test 8: Italic link — [*italic*](url)
+    {
+        auto ast = parser->parse("[*italic*](https://example.com)");
+        auto& para = ast.children[0];
+        ASSERT_EQ(para.children.size(), 1u);
+        ASSERT_EQ(para.children[0].type, NodeType::Link);
+        ASSERT_EQ(para.children[0].url, "https://example.com");
+        ASSERT_EQ(para.children[0].children[0].type, NodeType::Emphasis);
+        ASSERT_EQ(para.children[0].children[0].children[0].text, "italic");
+    }
+
+    // Test 9: Empty link text — [](url) parses without crash
+    {
+        auto ast = parser->parse("[](https://example.com)");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(1));
+        ftxui::Render(screen, element);
+        // Just verify no crash
+    }
+
+    // Test 10: Two links in one paragraph — both correct URLs
+    {
+        auto ast = parser->parse("[a](https://a.com) and [b](https://b.com)");
+        auto& para = ast.children[0];
+        int link_count = 0;
+        for (auto const& child : para.children) {
+            if (child.type == NodeType::Link) {
+                ++link_count;
+                if (link_count == 1) {
+                    ASSERT_EQ(child.url, "https://a.com");
+                } else {
+                    ASSERT_EQ(child.url, "https://b.com");
+                }
+            }
+        }
+        ASSERT_EQ(link_count, 2);
+    }
+
+    // Test 11: Link with fragment — URL preserved
+    {
+        auto ast = parser->parse("[text](https://example.com/page#section)");
+        auto& para = ast.children[0];
+        ASSERT_EQ(para.children[0].type, NodeType::Link);
+        ASSERT_EQ(para.children[0].url, "https://example.com/page#section");
+    }
+
     return 0;
 }

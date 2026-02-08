@@ -124,5 +124,57 @@ int main() {
         ASSERT_CONTAINS(output, "beta");
     }
 
+    // Test 11: Empty list item — no crash, 2 items
+    {
+        auto ast = parser->parse("- \n- text");
+        auto& list = ast.children[0];
+        ASSERT_EQ(list.type, NodeType::BulletList);
+        ASSERT_EQ(list.children.size(), 2u);
+
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(2));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "text");
+    }
+
+    // Test 12: 3-level nested list — correct structure
+    {
+        auto ast = parser->parse("- level 1\n  - level 2\n    - level 3");
+        auto& l1 = ast.children[0];
+        ASSERT_EQ(l1.type, NodeType::BulletList);
+        // First item has paragraph + nested list
+        auto& item1 = l1.children[0];
+        ASSERT_EQ(item1.type, NodeType::ListItem);
+        // Find nested list in item1 children
+        bool found_nested = false;
+        for (auto const& child : item1.children) {
+            if (child.type == NodeType::BulletList) {
+                found_nested = true;
+                // Second level has an item with another nested list
+                auto& item2 = child.children[0];
+                ASSERT_EQ(item2.type, NodeType::ListItem);
+            }
+        }
+        ASSERT_TRUE(found_nested);
+
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(6));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "level 1");
+        ASSERT_CONTAINS(output, "level 3");
+    }
+
+    // Test 13: Ordered list followed by bullet list — two separate list nodes
+    {
+        auto ast = parser->parse("1. ordered\n2. items\n\n- bullet\n- items");
+        ASSERT_TRUE(ast.children.size() >= 2u);
+        ASSERT_EQ(ast.children[0].type, NodeType::OrderedList);
+        ASSERT_EQ(ast.children[1].type, NodeType::BulletList);
+    }
+
     return 0;
 }

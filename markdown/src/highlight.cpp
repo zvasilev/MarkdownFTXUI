@@ -9,25 +9,62 @@ namespace markdown {
 namespace {
 
 bool is_inline_syntax(char c) {
-    return c == '*' || c == '_' || c == '`' ||
+    return c == '*' || c == '_' || c == '`' || c == '!' ||
            c == '[' || c == ']' || c == '(' || c == ')';
 }
 
 // Determine how many chars at line start are syntax markers
 size_t line_marker_end(std::string_view line) {
-    if (!line.empty() && line[0] == '#') {
+    if (line.empty()) return 0;
+
+    // Heading: # ## ### etc.
+    if (line[0] == '#') {
         size_t end = 0;
         while (end < line.size() && line[end] == '#') ++end;
         if (end < line.size() && line[end] == ' ') ++end;
         return end;
     }
-    if (!line.empty() && line[0] == '>') {
+    // Blockquote: > text
+    if (line[0] == '>') {
         size_t end = 1;
         if (end < line.size() && line[end] == ' ') ++end;
         return end;
     }
+    // Bullet list: - item
     if (line.size() >= 2 && line[0] == '-' && line[1] == ' ') {
         return 2;
+    }
+    // Ordered list: 1. item, 12. item, etc.
+    if (line[0] >= '0' && line[0] <= '9') {
+        size_t end = 0;
+        while (end < line.size() && line[end] >= '0' && line[end] <= '9') ++end;
+        if (end < line.size() && line[end] == '.' &&
+            end + 1 < line.size() && line[end + 1] == ' ') {
+            return end + 2; // digits + ". "
+        }
+    }
+    // Code fence: ``` or ~~~
+    if (line.size() >= 3 &&
+        ((line[0] == '`' && line[1] == '`' && line[2] == '`') ||
+         (line[0] == '~' && line[1] == '~' && line[2] == '~'))) {
+        return line.size(); // entire line is syntax
+    }
+    // Thematic break: --- or *** or ___ (3+ of same char, optionally spaces)
+    if (line[0] == '-' || line[0] == '*' || line[0] == '_') {
+        char ch = line[0];
+        size_t count = 0;
+        bool only_marker = true;
+        for (size_t i = 0; i < line.size(); ++i) {
+            if (line[i] == ch) {
+                ++count;
+            } else if (line[i] != ' ') {
+                only_marker = false;
+                break;
+            }
+        }
+        if (only_marker && count >= 3) {
+            return line.size(); // entire line is syntax
+        }
     }
     return 0;
 }
@@ -71,8 +108,10 @@ ftxui::Element highlight_line(std::string_view line,
                 ftxui::text(std::string(line.data() + start, i - start))
                     | syntax_style);
         } else {
-            normal += line[i];
-            ++i;
+            size_t glen = utf8_glyph_len(line[i]);
+            glen = std::min(glen, line.size() - i);
+            normal.append(line.data() + i, glen);
+            i += glen;
         }
     }
     flush_normal();
