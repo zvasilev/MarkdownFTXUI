@@ -8,4 +8,4 @@ add_executable(markdown-demo
 )
 target_link_libraries(markdown-demo PRIVATE markdown-ui)
 target_compile_definitions(markdown-demo PRIVATE
-    SNIPPET_FILE="${CMAKE_SOURCE_DIR}/markdown/tests/snippets/email1.md")
+    SNIPPET_DIR="${CMAKE_SOURCE_DIR}/markdown/tests/snippets")
