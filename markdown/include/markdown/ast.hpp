@@ -12,7 +12,6 @@ enum class NodeType {
     Text,
     Emphasis,
     Strong,
-    StrongEmphasis,
     Link,
     ListItem,
     BulletList,

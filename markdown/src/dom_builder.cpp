@@ -1,5 +1,7 @@
 #include "markdown/dom_builder.hpp"
 
+#include <string_view>
+
 #include <ftxui/dom/flexbox_config.hpp>
 
 namespace markdown {
@@ -42,6 +44,22 @@ ftxui::Decorator link_style(bool is_focused, ftxui::Decorator base,
                             Theme const& theme) {
     if (is_focused) return base | ftxui::underlined | ftxui::inverted;
     return base | ftxui::underlined | theme.link;
+}
+
+// Register a link: create a LinkTarget, wrap each element in elems[from..]
+// with reflect for click detection, and apply focus to the first element.
+void register_link(Links& links, ftxui::Elements& elems, size_t from,
+                   std::string const& url, bool is_focused) {
+    links.emplace_back(LinkTarget{.url = url});
+    auto& target = links.back();
+    size_t count = elems.size() - from;
+    target.boxes.resize(count);
+    for (size_t i = from; i < elems.size(); ++i) {
+        elems[i] = elems[i] | ftxui::reflect(target.boxes[i - from]);
+    }
+    if (is_focused && count > 0) {
+        elems[from] = elems[from] | ftxui::focus;
+    }
 }
 
 ftxui::Element build_node(ASTNode const& node, int depth, int qd,
@@ -107,7 +125,8 @@ void collect_inline_words(ASTNode const& node, int depth, int qd,
             break;
         }
         case NodeType::SoftBreak:
-            break; // flexbox gap handles spacing
+        case NodeType::HardBreak:
+            break; // handled by build_wrapping_container (HardBreak splits rows)
         case NodeType::Strong:
             collect_inline_words(child, depth + 1, qd, words,
                                  style | ftxui::bold, links, focused_link,
@@ -121,23 +140,10 @@ void collect_inline_words(ASTNode const& node, int depth, int qd,
         case NodeType::Link: {
             bool is_focused = is_next_link_focused(links, focused_link);
             auto ls = link_style(is_focused, style, theme);
-            // Collect link words with underline, then wrap in reflect
             size_t before = words.size();
             collect_inline_words(child, depth + 1, qd, words,
                                  ls, links, focused_link, theme);
-            // Wrap every word of this link with reflect for click detection
-            links.emplace_back(LinkTarget{.url = child.url});
-            auto& target = links.back();
-            size_t word_count = words.size() - before;
-            target.boxes.resize(word_count);
-            bool first_word = true;
-            for (size_t i = before; i < words.size(); ++i) {
-                words[i] = words[i] | ftxui::reflect(target.boxes[i - before]);
-                if (is_focused && first_word) {
-                    words[i] = words[i] | ftxui::focus;
-                    first_word = false;
-                }
-            }
+            register_link(links, words, before, child.url, is_focused);
             break;
         }
         case NodeType::CodeInline:
@@ -162,8 +168,25 @@ bool is_plain_text_paragraph(ASTNode const& node) {
     return true;
 }
 
+// Check if a node contains any HardBreak children.
+bool has_hard_break(ASTNode const& node) {
+    for (auto const& child : node.children) {
+        if (child.type == NodeType::HardBreak) return true;
+    }
+    return false;
+}
+
+// Build a flexbox row from a flat list of word elements.
+ftxui::Element words_to_element(ftxui::Elements& words) {
+    static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
+    if (words.empty()) return ftxui::text("");
+    if (words.size() == 1) return std::move(words[0]);
+    return ftxui::flexbox(std::move(words), wrap_config);
+}
+
 // Wrapping version of build_inline_container for block-level paragraphs.
 // Splits all inline content into word-level flexbox items for line wrapping.
+// HardBreak nodes force a new line by splitting into separate flexbox rows.
 ftxui::Element build_wrapping_container(ASTNode const& node, int depth, int qd,
                                         Links& links, int focused_link,
                                         Theme const& theme) {
@@ -186,13 +209,41 @@ ftxui::Element build_wrapping_container(ASTNode const& node, int depth, int qd,
         return ftxui::paragraph(combined);
     }
 
-    static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
-    ftxui::Elements words;
-    collect_inline_words(node, depth, qd, words, ftxui::nothing, links,
-                         focused_link, theme);
-    if (words.empty()) return ftxui::text("");
-    if (words.size() == 1) return std::move(words[0]);
-    return ftxui::flexbox(std::move(words), wrap_config);
+    // If no hard breaks, single flexbox row (common case).
+    if (!has_hard_break(node)) {
+        ftxui::Elements words;
+        collect_inline_words(node, depth, qd, words, ftxui::nothing, links,
+                             focused_link, theme);
+        return words_to_element(words);
+    }
+
+    // Split at HardBreak boundaries: each segment becomes its own row.
+    // Build a temporary ASTNode per segment and collect words from it.
+    ftxui::Elements rows;
+    ASTNode segment{.type = node.type};
+    auto flush_segment = [&] {
+        if (segment.children.empty()) {
+            rows.push_back(ftxui::text(""));
+            return;
+        }
+        ftxui::Elements words;
+        collect_inline_words(segment, depth, qd, words, ftxui::nothing,
+                             links, focused_link, theme);
+        rows.push_back(words_to_element(words));
+        segment.children.clear();
+    };
+
+    for (auto const& child : node.children) {
+        if (child.type == NodeType::HardBreak) {
+            flush_segment();
+        } else {
+            segment.children.push_back(child);
+        }
+    }
+    flush_segment();
+
+    if (rows.size() == 1) return std::move(rows[0]);
+    return ftxui::vbox(std::move(rows));
 }
 
 // Build a ListItem: first Paragraph gets bullet/number prefix,
@@ -261,10 +312,10 @@ ftxui::Element build_link(ASTNode const& node, int depth, int qd,
     auto el = build_inline_container(node, depth, qd, links, focused_link,
                                      theme)
         | link_style(is_focused, ftxui::nothing, theme);
-    if (is_focused) el = el | ftxui::focus;
-    links.emplace_back(LinkTarget{.url = node.url});
-    links.back().boxes.emplace_back();
-    return el | ftxui::reflect(links.back().boxes.back());
+    ftxui::Elements elems;
+    elems.push_back(std::move(el));
+    register_link(links, elems, 0, node.url, is_focused);
+    return std::move(elems[0]);
 }
 
 ftxui::Element build_bullet_list(ASTNode const& node, int depth, int qd,
@@ -307,17 +358,18 @@ ftxui::Element build_blockquote(ASTNode const& node, int depth, int qd,
 }
 
 ftxui::Element build_code_block(ASTNode const& node, Theme const& theme) {
-    std::string code = node.text;
-    if (!code.empty() && code.back() == '\n') code.pop_back();
+    std::string_view code = node.text;
+    if (!code.empty() && code.back() == '\n') code.remove_suffix(1);
     ftxui::Elements lines;
     size_t start = 0;
     while (start <= code.size()) {
         auto end = code.find('\n', start);
-        if (end == std::string::npos) {
-            lines.push_back(ftxui::text(code.substr(start)));
+        if (end == std::string_view::npos) {
+            lines.push_back(ftxui::text(std::string(code.substr(start))));
             break;
         }
-        lines.push_back(ftxui::text(code.substr(start, end - start)));
+        lines.push_back(
+            ftxui::text(std::string(code.substr(start, end - start))));
         start = end + 1;
     }
     if (lines.empty()) lines.push_back(ftxui::text(""));
@@ -382,7 +434,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd,
     case NodeType::SoftBreak:
         return ftxui::text(" ");
     case NodeType::HardBreak:
-        return ftxui::text("\n");
+        return ftxui::text("");
     default:
         return ftxui::text(node.text);
     }

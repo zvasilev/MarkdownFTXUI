@@ -231,15 +231,17 @@ ftxui::Component Viewer::component() {
         }
         _focused_link = (_focus_index >= ext_n) ? _focus_index - ext_n : -1;
 
-        // Rebuild element when content, focused link, or theme changes
+        // Rebuild element when content, focused link, theme, or builder config changes
         if (_parsed_gen != _built_gen ||
             _focused_link != _last_focused_link ||
-            _theme_gen != _built_theme_gen) {
+            _theme_gen != _built_theme_gen ||
+            _builder_gen != _built_builder_gen) {
             _cached_element = _builder.build(_cached_ast, _focused_link,
                                              _theme);
             _built_gen = _parsed_gen;
             _last_focused_link = _focused_link;
             _built_theme_gen = _theme_gen;
+            _built_builder_gen = _builder_gen;
         }
         auto el = _cached_element;
 

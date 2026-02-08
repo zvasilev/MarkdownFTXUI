@@ -23,6 +23,8 @@ struct ExternalFocusable {
 class Viewer {
 public:
     explicit Viewer(std::unique_ptr<MarkdownParser> parser);
+    Viewer(Viewer&&) = delete;
+    Viewer& operator=(Viewer&&) = delete;
 
     void set_content(std::string_view markdown_text);
     void set_scroll(float ratio);
@@ -32,9 +34,16 @@ public:
     void set_theme(Theme const& theme) {
         if (_theme.name != theme.name) { _theme = theme; ++_theme_gen; }
     }
-    void set_max_quote_depth(int d) { _builder.set_max_quote_depth(d); }
+    void set_max_quote_depth(int d) {
+        _builder.set_max_quote_depth(d);
+        ++_builder_gen;
+    }
     int max_quote_depth() const { return _builder.max_quote_depth(); }
 
+    /// Returns the FTXUI component. Created on first call, cached thereafter.
+    /// Configure the object (set_content, set_theme, on_link_click, etc.)
+    /// before OR after this call — the renderer reads live state each frame.
+    /// However, do not move this object after calling component().
     ftxui::Component component();
     bool active() const { return _active; }
     void set_active(bool a) { _active = a; }
@@ -79,6 +88,8 @@ private:
     Theme _theme{theme_default()};
     uint64_t _theme_gen = 0;
     uint64_t _built_theme_gen = 0;
+    uint64_t _builder_gen = 0;
+    uint64_t _built_builder_gen = 0;
     std::function<void(std::string const&, LinkEvent)> _link_callback;
     ftxui::Component _component;
     std::vector<ExternalFocusable> _externals;

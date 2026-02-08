@@ -18,7 +18,6 @@ enum class NodeType {
     Text,            // Leaf text content
     Emphasis,        // Italic (*text* or _text_)
     Strong,          // Bold (**text** or __text__)
-    StrongEmphasis,  // Bold + italic (***text***)
     Link,            // Hyperlink [text](url)
     ListItem,        // Single list item
     BulletList,      // Unordered list container
@@ -480,7 +479,6 @@ for (auto const& link : builder.link_targets()) {
 | Heading (level 3+) | `theme.heading3` decorator (default: bold + dim) |
 | Strong | `ftxui::bold` |
 | Emphasis | `ftxui::italic` (where supported) |
-| StrongEmphasis | `ftxui::bold` (italic not always combined) |
 | Link | `ftxui::underlined` + `theme.link` + `ftxui::reflect()` for boxes |
 | Link (focused) | adds `ftxui::inverted` + `ftxui::focus` |
 | BulletList | `"  * "` prefix per item, indentation for nesting |

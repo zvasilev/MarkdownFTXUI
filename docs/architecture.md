@@ -94,7 +94,7 @@ A recursive tree structure representing parsed Markdown. Each node has a `NodeTy
               └── Text ("item two")
 ```
 
-Supported node types (18 total): Document, Heading, Paragraph, Text, Emphasis, Strong, StrongEmphasis, Link, ListItem, BulletList, OrderedList, CodeInline, CodeBlock, BlockQuote, SoftBreak, HardBreak, ThematicBreak, Image.
+Supported node types (17 total): Document, Heading, Paragraph, Text, Emphasis, Strong, Link, ListItem, BulletList, OrderedList, CodeInline, CodeBlock, BlockQuote, SoftBreak, HardBreak, ThematicBreak, Image.
 
 ### DomBuilder (`dom_builder.hpp`)
 

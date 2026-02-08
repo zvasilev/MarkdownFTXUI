@@ -13,7 +13,13 @@ namespace markdown {
 class Editor {
 public:
     explicit Editor();
+    Editor(Editor&&) = delete;
+    Editor& operator=(Editor&&) = delete;
 
+    /// Returns the FTXUI component. Created on first call, cached thereafter.
+    /// Configure the object (set_content, set_theme, etc.) before OR after
+    /// this call — the renderer reads live state each frame.
+    /// However, do not move this object after calling component().
     ftxui::Component component();
 
     std::string const& content() const;

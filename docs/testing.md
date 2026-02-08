@@ -94,7 +94,7 @@ Tests are grouped in blocks within `main()`. Each block is independent and can b
 | `test_headings.cpp` | Headings H1-H6: correct `NodeType::Heading`, `level` field, bold/dim decorators in rendered output. |
 | `test_bold.cpp` | `**bold**` and `__bold__`: AST produces `NodeType::Strong`, rendered output contains bold text. |
 | `test_italic.cpp` | `*italic*` and `_italic_`: AST produces `NodeType::Emphasis`, rendered output contains italic text. |
-| `test_bold_italic.cpp` | `***bold italic***` and mixed nesting: AST produces `NodeType::StrongEmphasis` or nested Strong/Emphasis. |
+| `test_bold_italic.cpp` | `***bold italic***` and mixed nesting: AST produces nested Strong/Emphasis nodes. |
 | `test_links.cpp` | `[text](url)`: AST structure, URL extraction, link nesting with bold/italic, DomBuilder link_targets(). |
 | `test_lists.cpp` | `- item` unordered lists: AST structure, bullet prefix rendering, list item content. |
 | `test_code.cpp` | `` `inline code` ``: AST produces `NodeType::CodeInline`, inverted rendering in output. |
