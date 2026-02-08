@@ -121,11 +121,12 @@ void collect_inline_words(ASTNode const& node, int depth, int qd, int mqd,
                 }
                 auto end = t.find(' ', pos);
                 if (end == std::string::npos) end = t.size();
-                std::string word = t.substr(pos, end - pos);
-                if (space_start < pos) {
-                    word = " " + word; // keep space with word for underline
-                }
-                words.push_back(ftxui::text(word) | style);
+                std::string word;
+                bool needs_space = (space_start < pos);
+                word.reserve((end - pos) + (needs_space ? 1 : 0));
+                if (needs_space) word += ' ';
+                word.append(t.data() + pos, end - pos);
+                words.push_back(ftxui::text(std::move(word)) | style);
                 pos = end;
             }
             break;
@@ -465,8 +466,22 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
 ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link,
                                  Theme const& theme) {
     _link_targets.clear();
-    return build_node(ast, 0, 0, _max_quote_depth, _link_targets,
-                      focused_link, theme);
+    auto result = build_node(ast, 0, 0, _max_quote_depth, _link_targets,
+                             focused_link, theme);
+
+    // Build flat sorted index for O(log n) click detection.
+    _flat_boxes.clear();
+    for (int i = 0; i < static_cast<int>(_link_targets.size()); ++i) {
+        for (auto const& box : _link_targets[i].boxes) {
+            _flat_boxes.push_back({box, i});
+        }
+    }
+    std::sort(_flat_boxes.begin(), _flat_boxes.end(),
+              [](FlatLinkBox const& a, FlatLinkBox const& b) {
+                  return a.box.y_min < b.box.y_min;
+              });
+
+    return result;
 }
 
 } // namespace markdown

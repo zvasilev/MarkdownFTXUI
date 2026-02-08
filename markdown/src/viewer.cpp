@@ -265,14 +265,23 @@ ftxui::Component Viewer::component() {
             mouse.motion != ftxui::Mouse::Pressed) {
             return false;
         }
-        for (auto const& link : _builder.link_targets()) {
-            for (auto const& box : link.boxes) {
-                if (box.Contain(mouse.x, mouse.y)) {
-                    if (_link_callback) {
-                        _link_callback(link.url, LinkEvent::Press);
-                    }
-                    return true;
+        auto const& flat = _builder.flat_link_boxes();
+        // Binary search for first box where y_min <= mouse.y
+        auto it = std::lower_bound(flat.begin(), flat.end(), mouse.y,
+            [](FlatLinkBox const& fb, int y) { return fb.box.y_min < y; });
+        // Scan backwards for boxes that started before mouse.y but span it
+        while (it != flat.begin()) {
+            auto prev = std::prev(it);
+            if (prev->box.y_max < mouse.y) break;
+            it = prev;
+        }
+        for (; it != flat.end() && it->box.y_min <= mouse.y; ++it) {
+            if (it->box.Contain(mouse.x, mouse.y)) {
+                auto const& link = _builder.link_targets()[it->link_index];
+                if (_link_callback) {
+                    _link_callback(link.url, LinkEvent::Press);
                 }
+                return true;
             }
         }
         return false;

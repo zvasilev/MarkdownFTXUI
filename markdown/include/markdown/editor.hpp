@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -37,6 +39,7 @@ public:
 
 private:
     void update_cursor_info();
+    std::vector<std::string_view> const& cached_lines();
 
     std::string _content;
     int _cursor_pos = 0;
@@ -51,6 +54,17 @@ private:
     Theme _theme{theme_default()};
     ftxui::Box _editor_box;
     ftxui::Component _component;
+    // Cached split_lines result
+    std::vector<std::string_view> _cached_lines;
+    const char* _lines_data = nullptr;
+    size_t _lines_size = 0;
+    // Highlight cache — skip re-highlighting when nothing changed
+    ftxui::Element _cached_highlight;
+    const char* _hl_data = nullptr;
+    size_t _hl_size = 0;
+    int _hl_cursor = -1;
+    bool _hl_focused = false;
+    bool _hl_hovered = false;
 };
 
 } // namespace markdown

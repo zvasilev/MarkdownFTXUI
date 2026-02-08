@@ -49,6 +49,15 @@ void Editor::set_cursor(int line, int col) {
     _cursor_pos = static_cast<int>(pos + byte_col);
 }
 
+std::vector<std::string_view> const& Editor::cached_lines() {
+    if (_content.data() != _lines_data || _content.size() != _lines_size) {
+        _cached_lines = split_lines(_content);
+        _lines_data = _content.data();
+        _lines_size = _content.size();
+    }
+    return _cached_lines;
+}
+
 void Editor::update_cursor_info() {
     // Fast path: skip if content and cursor haven't changed.
     if (_content.data() == _ci_data &&
@@ -144,10 +153,23 @@ ftxui::Component Editor::component() {
     input_option.transform = [this](ftxui::InputState state) {
         if (state.is_placeholder) return state.element;
         update_cursor_info();
-        auto element = highlight_markdown_with_cursor(
-            _content, _cursor_pos, state.focused, state.hovered, true,
-            _theme);
-        return element | ftxui::reflect(_editor_box);
+        bool cache_hit = (_cached_highlight &&
+                          _content.data() == _hl_data &&
+                          _content.size() == _hl_size &&
+                          _cursor_pos == _hl_cursor &&
+                          state.focused == _hl_focused &&
+                          state.hovered == _hl_hovered);
+        if (!cache_hit) {
+            _cached_highlight = highlight_markdown_with_cursor(
+                _content, _cursor_pos, state.focused, state.hovered,
+                true, _theme);
+            _hl_data = _content.data();
+            _hl_size = _content.size();
+            _hl_cursor = _cursor_pos;
+            _hl_focused = state.focused;
+            _hl_hovered = state.hovered;
+        }
+        return _cached_highlight | ftxui::reflect(_editor_box);
     };
     auto input = ftxui::Input(&_content, input_option);
 
@@ -169,9 +191,9 @@ ftxui::Component Editor::component() {
         int click_y = mouse.y - _editor_box.y_min;
         int click_x = mouse.x - _editor_box.x_min;
 
-        // Split document into lines
-        auto lines = split_lines(_content);
-        if (lines.empty()) lines.push_back("");
+        // Split document into lines (cached)
+        auto const& lines = cached_lines();
+        if (lines.empty()) return false;
 
         // Subtract gutter columns from click_x
         click_x -= gutter_chars(static_cast<int>(lines.size()));

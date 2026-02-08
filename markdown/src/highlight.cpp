@@ -8,6 +8,30 @@
 namespace markdown {
 namespace {
 
+// Cache for pre-formatted line number strings ("  1 │ ", "  2 │ ", ...).
+// Reused across frames when line count is unchanged.
+struct GutterCache {
+    std::vector<std::string> strings;
+    int cached_count = 0;
+    int cached_gw = 0;
+
+    void ensure(int count, int gw) {
+        if (count == cached_count && gw == cached_gw) return;
+        cached_count = count;
+        cached_gw = gw;
+        strings.resize(count);
+        for (int i = 0; i < count; ++i) {
+            std::string num = std::to_string(i + 1);
+            if (static_cast<int>(num.size()) < gw) {
+                num.insert(0, gw - static_cast<int>(num.size()), ' ');
+            }
+            num += " \u2502 ";
+            strings[i] = std::move(num);
+        }
+    }
+};
+static GutterCache s_gutter_cache;
+
 bool is_inline_syntax(char c) {
     return c == '*' || c == '_' || c == '`' || c == '!' ||
            c == '[' || c == ']' || c == '(' || c == ')';
@@ -227,6 +251,10 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
         : 0;
     auto gutter_style = theme.gutter;
 
+    if (show_line_numbers) {
+        s_gutter_cache.ensure(static_cast<int>(lines.size()), gw);
+    }
+
     ftxui::Elements elements;
     for (size_t i = 0; i < lines.size(); ++i) {
         ftxui::Element line_el;
@@ -238,14 +266,8 @@ ftxui::Element highlight_markdown_with_cursor(std::string_view text,
         }
 
         if (show_line_numbers) {
-            std::string num = std::to_string(i + 1);
-            // Right-align the number
-            if (static_cast<int>(num.size()) < gw) {
-                num.insert(0, gw - static_cast<int>(num.size()), ' ');
-            }
-            num += " \u2502 ";
             line_el = ftxui::hbox({
-                ftxui::text(num) | gutter_style,
+                ftxui::text(s_gutter_cache.strings[i]) | gutter_style,
                 std::move(line_el),
             });
         }

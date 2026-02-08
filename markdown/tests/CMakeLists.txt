@@ -99,3 +99,23 @@ add_test(NAME test_snippets COMMAND test_snippets)
 add_executable(test_stress test_stress.cpp)
 target_link_libraries(test_stress PRIVATE markdown-ui)
 add_test(NAME test_stress COMMAND test_stress)
+
+add_executable(test_perf_editor test_perf_editor.cpp)
+target_link_libraries(test_perf_editor PRIVATE markdown-ui)
+add_test(NAME test_perf_editor COMMAND test_perf_editor)
+
+add_executable(test_perf_viewer test_perf_viewer.cpp)
+target_link_libraries(test_perf_viewer PRIVATE markdown-ui)
+add_test(NAME test_perf_viewer COMMAND test_perf_viewer)
+
+add_executable(test_perf_parse_build test_perf_parse_build.cpp)
+target_link_libraries(test_perf_parse_build PRIVATE markdown-ui)
+add_test(NAME test_perf_parse_build COMMAND test_perf_parse_build)
+
+add_executable(test_perf_unicode test_perf_unicode.cpp)
+target_link_libraries(test_perf_unicode PRIVATE markdown-ui)
+add_test(NAME test_perf_unicode COMMAND test_perf_unicode)
+
+add_executable(test_perf_scroll test_perf_scroll.cpp)
+target_link_libraries(test_perf_scroll PRIVATE markdown-ui)
+add_test(NAME test_perf_scroll COMMAND test_perf_scroll)
