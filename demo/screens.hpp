@@ -16,3 +16,7 @@ ftxui::Component make_viewer_screen(
 ftxui::Component make_email_screen(
     int& current_screen, int& theme_index,
     std::vector<std::string>& theme_names);
+
+ftxui::Component make_newsletter_screen(
+    int& current_screen, int& theme_index,
+    std::vector<std::string>& theme_names);

@@ -89,3 +89,9 @@ add_test(NAME test_external_focusable COMMAND test_external_focusable)
 add_executable(test_scroll_frame test_scroll_frame.cpp)
 target_link_libraries(test_scroll_frame PRIVATE markdown-ui)
 add_test(NAME test_scroll_frame COMMAND test_scroll_frame)
+
+add_executable(test_snippets test_snippets.cpp)
+target_link_libraries(test_snippets PRIVATE markdown-ui)
+target_compile_definitions(test_snippets PRIVATE
+    SNIPPETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/snippets")
+add_test(NAME test_snippets COMMAND test_snippets)
