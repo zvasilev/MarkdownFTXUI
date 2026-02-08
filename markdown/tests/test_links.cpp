@@ -74,5 +74,30 @@ int main() {
         ASSERT_EQ(para.children[2].text, " for info");
     }
 
+    // Test 6: Autolink parsed as regular link
+    {
+        auto ast = parser->parse("<https://auto.example.com>");
+        auto& para = ast.children[0];
+        ASSERT_EQ(para.children.size(), 1u);
+        ASSERT_EQ(para.children[0].type, NodeType::Link);
+        ASSERT_EQ(para.children[0].url, "https://auto.example.com");
+        ASSERT_EQ(para.children[0].children.size(), 1u);
+        ASSERT_EQ(para.children[0].children[0].type, NodeType::Text);
+        ASSERT_EQ(para.children[0].children[0].text,
+                  "https://auto.example.com");
+    }
+
+    // Test 7: Autolink renders underlined + blue
+    {
+        auto ast = parser->parse("<https://auto.example.com>");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
+                                            ftxui::Dimension::Fixed(1));
+        ftxui::Render(screen, element);
+        auto& pixel = screen.PixelAt(0, 0);
+        ASSERT_TRUE(pixel.underlined);
+        ASSERT_TRUE(pixel.foreground_color == ftxui::Color::Blue);
+    }
+
     return 0;
 }

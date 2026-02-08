@@ -67,5 +67,33 @@ int main() {
         ASSERT_EQ(para.children[1].text, "cmd");
     }
 
+    // Test 6: Fenced code block with language info
+    {
+        auto ast = parser->parse("```python\nprint(\"hi\")\n```");
+        ASSERT_EQ(ast.children.size(), 1u);
+        ASSERT_EQ(ast.children[0].type, NodeType::CodeBlock);
+        ASSERT_EQ(ast.children[0].info, "python");
+        ASSERT_CONTAINS(ast.children[0].text, "print");
+    }
+
+    // Test 7: Fenced code block without language has empty info
+    {
+        auto ast = parser->parse("```\nsome code\n```");
+        ASSERT_EQ(ast.children[0].type, NodeType::CodeBlock);
+        ASSERT_TRUE(ast.children[0].info.empty());
+    }
+
+    // Test 8: Code block language label renders
+    {
+        auto ast = parser->parse("```js\nalert(1)\n```");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(40),
+                                            ftxui::Dimension::Fixed(5));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        ASSERT_CONTAINS(output, "js");
+        ASSERT_CONTAINS(output, "alert");
+    }
+
     return 0;
 }

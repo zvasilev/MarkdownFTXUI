@@ -373,6 +373,9 @@ ftxui::Element build_code_block(ASTNode const& node, Theme const& theme) {
     std::string_view code = node.text;
     if (!code.empty() && code.back() == '\n') code.remove_suffix(1);
     ftxui::Elements lines;
+    if (!node.info.empty()) {
+        lines.push_back(ftxui::text(node.info) | ftxui::dim);
+    }
     size_t start = 0;
     while (start <= code.size()) {
         auto end = code.find('\n', start);

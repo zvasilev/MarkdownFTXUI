@@ -49,21 +49,17 @@ bool Viewer::is_external_focused(int external_index) const {
 
 std::string Viewer::focused_value() const {
     if (_focus_index < 0) return {};
-    int ext_n = static_cast<int>(_externals.size());
-    if (_focus_index < ext_n) {
-        return _externals[_focus_index].value;
-    }
-    int link_idx = _focus_index - ext_n;
+    int ec = static_cast<int>(_externals.size());
+    if (_focus_index < ec) return _externals[_focus_index].value;
+    int li = _focus_index - ec;
     auto const& targets = _builder.link_targets();
-    if (link_idx < static_cast<int>(targets.size())) {
-        return targets[link_idx].url;
-    }
+    if (li < static_cast<int>(targets.size())) return targets[li].url;
     return {};
 }
 
 bool Viewer::is_link_focused() const {
-    return _focus_index >= static_cast<int>(_externals.size()) &&
-           _focus_index >= 0;
+    return _focus_index >= 0 &&
+           _focus_index >= static_cast<int>(_externals.size());
 }
 
 namespace {
@@ -176,10 +172,14 @@ public:
     }
 
 private:
+    int ext_count() const { return static_cast<int>(_externals.size()); }
+    int link_count() const {
+        return static_cast<int>(_builder.link_targets().size());
+    }
+    int total_focusable() const { return ext_count() + link_count(); }
+
     void cycle_focus(int direction) {
-        int ext_n = static_cast<int>(_externals.size());
-        int link_n = static_cast<int>(_builder.link_targets().size());
-        int total = ext_n + link_n;
+        int total = total_focusable();
         if (total == 0) return;
         if (_focus_index < 0) {
             _focus_index = (direction > 0) ? 0 : total - 1;
@@ -187,7 +187,7 @@ private:
             _focus_index = (_focus_index + direction + total) % total;
         }
         // Scroll to top when focusing an external so headers are visible.
-        if (_focus_index < ext_n) {
+        if (_focus_index < ext_count()) {
             _scroll_ratio = 0.0f;
         }
         notify_focus(LinkEvent::Focus);
@@ -195,15 +195,15 @@ private:
 
     void notify_focus(LinkEvent event) {
         if (_focus_index < 0) return;
-        int ext_n = static_cast<int>(_externals.size());
+        int ec = ext_count();
         std::string value;
-        if (_focus_index < ext_n) {
+        if (_focus_index < ec) {
             value = _externals[_focus_index].value;
         } else {
-            int link_idx = _focus_index - ext_n;
+            int li = _focus_index - ec;
             auto const& targets = _builder.link_targets();
-            if (link_idx >= static_cast<int>(targets.size())) return;
-            value = targets[link_idx].url;
+            if (li >= static_cast<int>(targets.size())) return;
+            value = targets[li].url;
         }
         if (_link_callback) {
             _link_callback(value, event);
@@ -223,13 +223,12 @@ ftxui::Component Viewer::component() {
         }
 
         // Derive _focused_link from unified _focus_index
-        int ext_n = static_cast<int>(_externals.size());
-        int link_n = static_cast<int>(_builder.link_targets().size());
-        int total = ext_n + link_n;
+        int ec = static_cast<int>(_externals.size());
+        int total = ec + static_cast<int>(_builder.link_targets().size());
         if (_focus_index >= total) {
             _focus_index = total > 0 ? total - 1 : -1;
         }
-        _focused_link = (_focus_index >= ext_n) ? _focus_index - ext_n : -1;
+        _focused_link = (_focus_index >= ec) ? _focus_index - ec : -1;
 
         // Rebuild element when content, focused link, theme, or builder config changes
         if (_parsed_gen != _built_gen ||

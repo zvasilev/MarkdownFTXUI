@@ -29,6 +29,7 @@ struct ASTNode {
     NodeType type = NodeType::Document;
     std::string text;
     std::string url;
+    std::string info;       // code block language (e.g. "python")
     int level = 0;
     int list_start = 1;
     std::vector<ASTNode> children;

@@ -102,6 +102,10 @@ ASTNode convert_node(cmark_node* node) {
         if (literal) {
             result.text = literal;
         }
+        auto const* fence_info = cmark_node_get_fence_info(node);
+        if (fence_info && fence_info[0]) {
+            result.info = fence_info;
+        }
         return result;
     }
     default:
