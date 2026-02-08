@@ -26,12 +26,14 @@ int main() {
         "Viewer with Scroll",
         "Email Viewer",
         "Newsletter Viewer",
+        "Depth Fallback",
     };
     auto menu_descriptions = std::vector<std::string>{
         "Side-by-side editing with live preview",
         "Scrollable markdown viewer with scrollbar",
         "Simulated email with combined scroll",
         "Real-world Apple Developer newsletter",
+        "Deep nesting: styled vs plain-text fallback",
     };
     auto menu_option = ftxui::MenuOption::Vertical();
     menu_option.on_enter = [&] { current_screen = menu_selected + 1; };
@@ -79,12 +81,15 @@ int main() {
                                      theme_names);
     auto screen4 = make_newsletter_screen(current_screen, theme_index,
                                           theme_names);
+    auto screen5 = make_depth_screen(current_screen, theme_index,
+                                     theme_names);
 
     // =====================================================================
     // Root: Tab switch + menu Esc
     // =====================================================================
     auto tab = ftxui::Container::Tab(
-        {menu_screen, screen1, screen2, screen3, screen4}, &current_screen);
+        {menu_screen, screen1, screen2, screen3, screen4, screen5},
+        &current_screen);
 
     auto root = ftxui::CatchEvent(tab, [&](ftxui::Event event) {
         if (event == ftxui::Event::Escape && current_screen == 0) {

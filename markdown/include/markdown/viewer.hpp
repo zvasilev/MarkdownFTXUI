@@ -32,6 +32,8 @@ public:
     void set_theme(Theme const& theme) {
         if (_theme.name != theme.name) { _theme = theme; ++_theme_gen; }
     }
+    void set_max_quote_depth(int d) { _builder.set_max_quote_depth(d); }
+    int max_quote_depth() const { return _builder.max_quote_depth(); }
 
     ftxui::Component component();
     bool active() const { return _active; }

@@ -5,7 +5,32 @@
 namespace markdown {
 namespace {
 
+constexpr int kMaxDepth = 40;
+
+// Set by DomBuilder::build() before each render pass.  Not thread-safe, but
+// DomBuilder is already single-threaded (mutates _link_targets during build).
+int s_max_quote_depth = 10;
+
 using Links = std::vector<LinkTarget>;
+
+// Iteratively collect all text from a subtree (no recursion — safe at any
+// depth).  Used as the plain-text fallback when nesting exceeds kMaxDepth.
+std::string collect_text(ASTNode const& root) {
+    std::string result;
+    std::vector<ASTNode const*> stack{&root};
+    while (!stack.empty()) {
+        auto* n = stack.back();
+        stack.pop_back();
+        if (!n->text.empty()) result += n->text;
+        if (n->type == NodeType::SoftBreak) result += ' ';
+        if (n->type == NodeType::HardBreak) result += '\n';
+        // Push children in reverse so leftmost is processed first.
+        for (auto it = n->children.rbegin(); it != n->children.rend(); ++it) {
+            stack.push_back(&*it);
+        }
+    }
+    return result;
+}
 
 // Returns true if the next link to be inserted matches focused_link.
 bool is_next_link_focused(Links const& links, int focused_link) {
@@ -19,25 +44,29 @@ ftxui::Decorator link_style(bool is_focused, ftxui::Decorator base,
     return base | ftxui::underlined | theme.link;
 }
 
-ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
-                          int focused_link, Theme const& theme);
+ftxui::Element build_node(ASTNode const& node, int depth, int qd,
+                          Links& links, int focused_link,
+                          Theme const& theme);
 
-ftxui::Elements build_children(ASTNode const& node, int depth, Links& links,
-                               int focused_link, Theme const& theme) {
+ftxui::Elements build_children(ASTNode const& node, int depth, int qd,
+                               Links& links, int focused_link,
+                               Theme const& theme) {
     ftxui::Elements result;
     for (auto const& child : node.children) {
-        result.push_back(build_node(child, depth, links, focused_link, theme));
+        result.push_back(build_node(child, depth, qd, links, focused_link,
+                                    theme));
     }
     return result;
 }
 
 // Collect inline children into a single hbox (for paragraphs, etc.)
-ftxui::Element build_inline_container(ASTNode const& node, int depth,
+ftxui::Element build_inline_container(ASTNode const& node, int depth, int qd,
                                       Links& links, int focused_link,
                                       Theme const& theme) {
     ftxui::Elements parts;
     for (auto const& child : node.children) {
-        parts.push_back(build_node(child, depth, links, focused_link, theme));
+        parts.push_back(build_node(child, depth, qd, links, focused_link,
+                                   theme));
     }
     if (parts.empty()) {
         return ftxui::text("");
@@ -51,11 +80,16 @@ ftxui::Element build_inline_container(ASTNode const& node, int depth,
 // Recursively collect words from inline AST nodes, preserving decorators.
 // Each word becomes a separate flexbox item so wrapping works at word
 // boundaries even inside bold/italic/link runs.
-void collect_inline_words(ASTNode const& node, int depth,
+void collect_inline_words(ASTNode const& node, int depth, int qd,
                           ftxui::Elements& words,
                           ftxui::Decorator style,
                           Links& links, int focused_link,
                           Theme const& theme) {
+    if (depth > kMaxDepth) {
+        auto text = collect_text(node);
+        if (!text.empty()) words.push_back(ftxui::text(text) | style);
+        return;
+    }
     for (auto const& child : node.children) {
         switch (child.type) {
         case NodeType::Text: {
@@ -75,12 +109,12 @@ void collect_inline_words(ASTNode const& node, int depth,
         case NodeType::SoftBreak:
             break; // flexbox gap handles spacing
         case NodeType::Strong:
-            collect_inline_words(child, depth, words,
+            collect_inline_words(child, depth + 1, qd, words,
                                  style | ftxui::bold, links, focused_link,
                                  theme);
             break;
         case NodeType::Emphasis:
-            collect_inline_words(child, depth, words,
+            collect_inline_words(child, depth + 1, qd, words,
                                  style | ftxui::italic, links, focused_link,
                                  theme);
             break;
@@ -89,7 +123,7 @@ void collect_inline_words(ASTNode const& node, int depth,
             auto ls = link_style(is_focused, style, theme);
             // Collect link words with underline, then wrap in reflect
             size_t before = words.size();
-            collect_inline_words(child, depth, words,
+            collect_inline_words(child, depth + 1, qd, words,
                                  ls, links, focused_link, theme);
             // Wrap every word of this link with reflect for click detection
             links.emplace_back(LinkTarget{.url = child.url});
@@ -111,7 +145,7 @@ void collect_inline_words(ASTNode const& node, int depth,
                             | style);
             break;
         default:
-            words.push_back(build_node(child, depth, links, focused_link,
+            words.push_back(build_node(child, depth, qd, links, focused_link,
                                        theme) | style);
             break;
         }
@@ -130,7 +164,7 @@ bool is_plain_text_paragraph(ASTNode const& node) {
 
 // Wrapping version of build_inline_container for block-level paragraphs.
 // Splits all inline content into word-level flexbox items for line wrapping.
-ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
+ftxui::Element build_wrapping_container(ASTNode const& node, int depth, int qd,
                                         Links& links, int focused_link,
                                         Theme const& theme) {
     // Fast path: plain text paragraphs use ftxui::paragraph() directly,
@@ -154,7 +188,7 @@ ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
 
     static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
     ftxui::Elements words;
-    collect_inline_words(node, depth, words, ftxui::nothing, links,
+    collect_inline_words(node, depth, qd, words, ftxui::nothing, links,
                          focused_link, theme);
     if (words.empty()) return ftxui::text("");
     if (words.size() == 1) return std::move(words[0]);
@@ -163,7 +197,7 @@ ftxui::Element build_wrapping_container(ASTNode const& node, int depth,
 
 // Build a ListItem: first Paragraph gets bullet/number prefix,
 // subsequent children (nested lists) rendered below with indentation.
-ftxui::Element build_list_item(ASTNode const& node, int depth,
+ftxui::Element build_list_item(ASTNode const& node, int depth, int qd,
                                std::string const& prefix, Links& links,
                                int focused_link, Theme const& theme) {
     std::string indent(depth * 2, ' ');
@@ -174,7 +208,7 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
         if (first_para && (child.type == NodeType::Paragraph ||
                            child.type == NodeType::Text)) {
             // First paragraph: render inline with bullet/number prefix
-            auto content = build_inline_container(child, depth, links,
+            auto content = build_inline_container(child, depth, qd, links,
                                                   focused_link, theme);
             rows.push_back(ftxui::hbox({
                 ftxui::text(indent + prefix),
@@ -183,7 +217,7 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
             first_para = false;
         } else {
             // Nested lists or additional paragraphs
-            rows.push_back(build_node(child, depth, links, focused_link,
+            rows.push_back(build_node(child, depth, qd, links, focused_link,
                                       theme));
         }
     }
@@ -196,9 +230,11 @@ ftxui::Element build_list_item(ASTNode const& node, int depth,
     return ftxui::vbox(std::move(rows));
 }
 
-ftxui::Element build_document(ASTNode const& node, int depth, Links& links,
-                              int focused_link, Theme const& theme) {
-    auto children = build_children(node, depth, links, focused_link, theme);
+ftxui::Element build_document(ASTNode const& node, int depth, int qd,
+                              Links& links, int focused_link,
+                              Theme const& theme) {
+    auto children = build_children(node, depth, qd, links, focused_link,
+                                   theme);
     if (children.empty()) return ftxui::text("");
     ftxui::Elements spaced;
     for (size_t i = 0; i < children.size(); ++i) {
@@ -208,19 +244,22 @@ ftxui::Element build_document(ASTNode const& node, int depth, Links& links,
     return ftxui::vbox(std::move(spaced));
 }
 
-ftxui::Element build_heading(ASTNode const& node, int depth, Links& links,
-                             int focused_link, Theme const& theme) {
-    auto content = build_inline_container(node, depth, links, focused_link,
+ftxui::Element build_heading(ASTNode const& node, int depth, int qd,
+                             Links& links, int focused_link,
+                             Theme const& theme) {
+    auto content = build_inline_container(node, depth, qd, links, focused_link,
                                           theme);
     if (node.level == 1) return content | theme.heading1;
     if (node.level == 2) return content | theme.heading2;
     return content | theme.heading3;
 }
 
-ftxui::Element build_link(ASTNode const& node, int depth, Links& links,
-                          int focused_link, Theme const& theme) {
+ftxui::Element build_link(ASTNode const& node, int depth, int qd,
+                          Links& links, int focused_link,
+                          Theme const& theme) {
     bool is_focused = is_next_link_focused(links, focused_link);
-    auto el = build_inline_container(node, depth, links, focused_link, theme)
+    auto el = build_inline_container(node, depth, qd, links, focused_link,
+                                     theme)
         | link_style(is_focused, ftxui::nothing, theme);
     if (is_focused) el = el | ftxui::focus;
     links.emplace_back(LinkTarget{.url = node.url});
@@ -228,32 +267,39 @@ ftxui::Element build_link(ASTNode const& node, int depth, Links& links,
     return el | ftxui::reflect(links.back().boxes.back());
 }
 
-ftxui::Element build_bullet_list(ASTNode const& node, int depth, Links& links,
-                                 int focused_link, Theme const& theme) {
+ftxui::Element build_bullet_list(ASTNode const& node, int depth, int qd,
+                                 Links& links, int focused_link,
+                                 Theme const& theme) {
     ftxui::Elements items;
     for (auto const& child : node.children) {
-        items.push_back(build_list_item(child, depth + 1, "\u2022 ",
+        items.push_back(build_list_item(child, depth + 1, qd, "\u2022 ",
                                         links, focused_link, theme));
     }
     return ftxui::vbox(std::move(items));
 }
 
-ftxui::Element build_ordered_list(ASTNode const& node, int depth, Links& links,
-                                  int focused_link, Theme const& theme) {
+ftxui::Element build_ordered_list(ASTNode const& node, int depth, int qd,
+                                  Links& links, int focused_link,
+                                  Theme const& theme) {
     ftxui::Elements items;
     int num = node.list_start;
     for (auto const& child : node.children) {
-        items.push_back(build_list_item(child, depth + 1,
+        items.push_back(build_list_item(child, depth + 1, qd,
                                         std::to_string(num++) + ". ",
                                         links, focused_link, theme));
     }
     return ftxui::vbox(std::move(items));
 }
 
-ftxui::Element build_blockquote(ASTNode const& node, int depth, Links& links,
-                                int focused_link, Theme const& theme) {
-    auto content = ftxui::vbox(build_children(node, depth, links,
+ftxui::Element build_blockquote(ASTNode const& node, int depth, int qd,
+                                Links& links, int focused_link,
+                                Theme const& theme) {
+    auto content = ftxui::vbox(build_children(node, depth, qd + 1, links,
                                               focused_link, theme));
+    // Cap visual indentation at max_quote_depth; content still renders.
+    if (qd >= s_max_quote_depth) {
+        return content | theme.blockquote;
+    }
     return ftxui::hbox({
         ftxui::text("\u2502 "),
         content | theme.blockquote,
@@ -278,9 +324,11 @@ ftxui::Element build_code_block(ASTNode const& node, Theme const& theme) {
     return ftxui::vbox(std::move(lines)) | theme.code_block | ftxui::border;
 }
 
-ftxui::Element build_image(ASTNode const& node, int depth, Links& links,
-                           int focused_link, Theme const& theme) {
-    auto alt = build_inline_container(node, depth, links, focused_link, theme);
+ftxui::Element build_image(ASTNode const& node, int depth, int qd,
+                           Links& links, int focused_link,
+                           Theme const& theme) {
+    auto alt = build_inline_container(node, depth, qd, links, focused_link,
+                                      theme);
     return ftxui::hbox({
         ftxui::text("[IMG: ") | ftxui::dim,
         alt,
@@ -288,33 +336,39 @@ ftxui::Element build_image(ASTNode const& node, int depth, Links& links,
     });
 }
 
-ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
-                          int focused_link, Theme const& theme) {
+ftxui::Element build_node(ASTNode const& node, int depth, int qd,
+                          Links& links, int focused_link,
+                          Theme const& theme) {
+    // Depth guard: fall back to plain text to prevent stack overflow.
+    if (depth + qd > kMaxDepth) {
+        return ftxui::paragraph(collect_text(node));
+    }
+
     switch (node.type) {
     case NodeType::Document:
-        return build_document(node, depth, links, focused_link, theme);
+        return build_document(node, depth, qd, links, focused_link, theme);
     case NodeType::Heading:
-        return build_heading(node, depth, links, focused_link, theme);
+        return build_heading(node, depth, qd, links, focused_link, theme);
     case NodeType::Paragraph:
-        return build_wrapping_container(node, depth, links, focused_link,
+        return build_wrapping_container(node, depth, qd, links, focused_link,
                                         theme);
     case NodeType::Strong:
-        return build_inline_container(node, depth, links, focused_link,
+        return build_inline_container(node, depth, qd, links, focused_link,
                                       theme) | ftxui::bold;
     case NodeType::Emphasis:
-        return build_inline_container(node, depth, links, focused_link,
+        return build_inline_container(node, depth, qd, links, focused_link,
                                       theme) | ftxui::italic;
     case NodeType::Link:
-        return build_link(node, depth, links, focused_link, theme);
+        return build_link(node, depth, qd, links, focused_link, theme);
     case NodeType::BulletList:
-        return build_bullet_list(node, depth, links, focused_link, theme);
+        return build_bullet_list(node, depth, qd, links, focused_link, theme);
     case NodeType::OrderedList:
-        return build_ordered_list(node, depth, links, focused_link, theme);
+        return build_ordered_list(node, depth, qd, links, focused_link, theme);
     case NodeType::ListItem:
-        return build_list_item(node, depth, "\u2022 ", links, focused_link,
+        return build_list_item(node, depth, qd, "\u2022 ", links, focused_link,
                                theme);
     case NodeType::BlockQuote:
-        return build_blockquote(node, depth, links, focused_link, theme);
+        return build_blockquote(node, depth, qd, links, focused_link, theme);
     case NodeType::CodeInline:
         return ftxui::text(node.text) | theme.code_inline;
     case NodeType::CodeBlock:
@@ -322,7 +376,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
     case NodeType::ThematicBreak:
         return ftxui::separator();
     case NodeType::Image:
-        return build_image(node, depth, links, focused_link, theme);
+        return build_image(node, depth, qd, links, focused_link, theme);
     case NodeType::Text:
         return ftxui::text(node.text);
     case NodeType::SoftBreak:
@@ -339,7 +393,8 @@ ftxui::Element build_node(ASTNode const& node, int depth, Links& links,
 ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link,
                                  Theme const& theme) {
     _link_targets.clear();
-    return build_node(ast, 0, _link_targets, focused_link, theme);
+    s_max_quote_depth = _max_quote_depth;
+    return build_node(ast, 0, 0, _link_targets, focused_link, theme);
 }
 
 } // namespace markdown

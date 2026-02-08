@@ -4,6 +4,7 @@ add_executable(markdown-demo
     screen_viewer.cpp
     screen_email.cpp
     screen_newsletter.cpp
+    screen_depth.cpp
 )
 target_link_libraries(markdown-demo PRIVATE markdown-ui)
 target_compile_definitions(markdown-demo PRIVATE
