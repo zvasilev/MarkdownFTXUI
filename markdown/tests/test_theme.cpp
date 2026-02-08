@@ -104,18 +104,18 @@ int main() {
         ASSERT_TRUE(screen.PixelAt(0, 0).underlined);
     }
 
-    // Test 10: High contrast link is bold
+    // Test 10: High contrast link is colored and underlined
     {
         auto ast = parser->parse("[link](https://example.com)");
         auto element = builder.build(ast, -1, theme_high_contrast());
         auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(80),
                                             ftxui::Dimension::Fixed(1));
         ftxui::Render(screen, element);
-        ASSERT_TRUE(screen.PixelAt(0, 0).bold);
+        ASSERT_TRUE(screen.PixelAt(0, 0).foreground_color != ftxui::Color());
         ASSERT_TRUE(screen.PixelAt(0, 0).underlined);
     }
 
-    // Test 11: Default link is underlined but NOT bold
+    // Test 11: Default link is blue and underlined
     {
         auto ast = parser->parse("[link](https://example.com)");
         auto element = builder.build(ast, -1, theme_default());
@@ -123,7 +123,7 @@ int main() {
                                             ftxui::Dimension::Fixed(1));
         ftxui::Render(screen, element);
         ASSERT_TRUE(screen.PixelAt(0, 0).underlined);
-        ASSERT_TRUE(!screen.PixelAt(0, 0).bold);
+        ASSERT_TRUE(screen.PixelAt(0, 0).foreground_color == ftxui::Color::Blue);
     }
 
     return 0;

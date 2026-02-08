@@ -114,19 +114,31 @@ void collect_inline_words(ASTNode const& node, int depth, int qd,
             auto const& t = child.text;
             size_t pos = 0;
             while (pos < t.size()) {
+                size_t space_start = pos;
                 while (pos < t.size() && t[pos] == ' ') ++pos;
-                if (pos >= t.size()) break;
+                if (pos >= t.size()) {
+                    // Trailing spaces: emit separator for next sibling.
+                    if (space_start < pos && !words.empty()) {
+                        words.push_back(ftxui::text(" ") | style);
+                    }
+                    break;
+                }
                 auto end = t.find(' ', pos);
                 if (end == std::string::npos) end = t.size();
-                words.push_back(
-                    ftxui::text(t.substr(pos, end - pos)) | style);
+                std::string word = t.substr(pos, end - pos);
+                if (space_start < pos) {
+                    word = " " + word; // keep space with word for underline
+                }
+                words.push_back(ftxui::text(word) | style);
                 pos = end;
             }
             break;
         }
         case NodeType::SoftBreak:
+            words.push_back(ftxui::text(" ") | style);
+            break;
         case NodeType::HardBreak:
-            break; // handled by build_wrapping_container (HardBreak splits rows)
+            break; // handled by build_wrapping_container
         case NodeType::Strong:
             collect_inline_words(child, depth + 1, qd, words,
                                  style | ftxui::bold, links, focused_link,
@@ -178,7 +190,7 @@ bool has_hard_break(ASTNode const& node) {
 
 // Build a flexbox row from a flat list of word elements.
 ftxui::Element words_to_element(ftxui::Elements& words) {
-    static const auto wrap_config = ftxui::FlexboxConfig().SetGap(1, 0);
+    static const auto wrap_config = ftxui::FlexboxConfig().SetGap(0, 0);
     if (words.empty()) return ftxui::text("");
     if (words.size() == 1) return std::move(words[0]);
     return ftxui::flexbox(std::move(words), wrap_config);
