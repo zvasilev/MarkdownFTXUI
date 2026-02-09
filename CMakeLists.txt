@@ -34,7 +34,16 @@ set(CMARK_STATIC ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(ftxui cmark-gfm)
 
-enable_testing()
+option(MARKDOWN_UI_BUILD_TESTS "Build tests" ON)
+option(MARKDOWN_UI_BUILD_DEMO  "Build demo"  ON)
 
 add_subdirectory(markdown)
-add_subdirectory(demo)
+
+if(MARKDOWN_UI_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(markdown/tests)
+endif()
+
+if(MARKDOWN_UI_BUILD_DEMO)
+    add_subdirectory(demo)
+endif()

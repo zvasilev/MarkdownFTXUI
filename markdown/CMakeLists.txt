@@ -28,8 +28,6 @@ target_link_libraries(markdown-ui
         libcmark-gfm-extensions_static
 )
 
-add_subdirectory(tests)
-
 # --- Install targets ---
 include(GNUInstallDirs)
 
