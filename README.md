@@ -6,6 +6,8 @@ A C++ library for rendering and editing Markdown directly in the terminal. Built
 |---|---|
 | ![Editor and Viewer side by side](docs/markdown-editor-viewer.png) | ![Viewer with scrollbar and link navigation](docs/markdown-viewer-scroll.png) |
 
+> Used by [Mailtemi](https://mailtemi.com/) -- a privacy-focused multi-account email app (JMAP-first, MS Graph, IMAP). Currently used for testing Markdown email rendering; a full TUI client with [calendar support](https://mailtemi.com/blog/calendaring-progress/) is planned.
+
 ## Features
 
 - **Editor** with lexical syntax highlighting, line numbers, and cursor tracking
@@ -174,10 +176,6 @@ See [docs/testing.md](docs/testing.md) for the full test list and instructions f
 | `> quote` | Vertical bar prefix + dim |
 | `---` | Horizontal separator |
 | `![alt](url)` | `[img: alt]` placeholder |
-
-## Used By
-
-- [Mailtemi](https://mailtemi.com/) -- a privacy-focused multi-account email app (JMAP-first, MS Graph, IMAP). Currently uses MarkdownFTXUI for testing Markdown email rendering; a full TUI client is planned for the future.
 
 ## License
 
