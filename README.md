@@ -175,6 +175,10 @@ See [docs/testing.md](docs/testing.md) for the full test list and instructions f
 | `---` | Horizontal separator |
 | `![alt](url)` | `[img: alt]` placeholder |
 
+## Used By
+
+- [Mailtemi](https://mailtemi.com/) -- a privacy-focused multi-account email app (JMAP-first, MS Graph, IMAP). Currently uses MarkdownFTXUI for testing Markdown email rendering; a full TUI client is planned for the future.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
