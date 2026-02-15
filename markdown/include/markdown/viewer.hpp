@@ -10,6 +10,7 @@
 
 #include "markdown/dom_builder.hpp"
 #include "markdown/parser.hpp"
+#include "markdown/scroll_frame.hpp"
 
 namespace markdown {
 
@@ -66,6 +67,7 @@ public:
     void set_embed(bool embed) { _embed = embed; }
     bool is_embed() const { return _embed; }
     float scroll() const { return _scroll_ratio; }
+    ScrollInfo const& scroll_info() const { return _scroll_info; }
     bool scrollbar_visible() const { return _show_scrollbar; }
     Theme const& theme() const { return _theme; }
     bool is_link_focused() const;
@@ -80,6 +82,7 @@ private:
     MarkdownAST _cached_ast;
     ftxui::Element _cached_element = ftxui::text("");
     float _scroll_ratio = 0.0f;
+    ScrollInfo _scroll_info;
     bool _show_scrollbar = true;
     bool _active = false;
     int _focus_index = -1;

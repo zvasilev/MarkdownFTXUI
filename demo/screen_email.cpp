@@ -127,7 +127,7 @@ ftxui::Component make_email_screen(
                             | ftxui::dim | ftxui::underlined,
                     ftxui::filler(),
                     ftxui::text(
-                        " Tab:cycle  Up/Down:scroll  Left/Right:theme  Esc:back ")
+                        " Tab:cycle  Scroll:Arrows/PgUp/PgDn/Home/End  Theme:Left/Right  Esc:back")
                         | ftxui::dim,
                 }),
             });

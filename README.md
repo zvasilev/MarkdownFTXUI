@@ -15,7 +15,7 @@ A C++ library for rendering and editing Markdown directly in the terminal. Built
 - **Link navigation** via Tab/Shift+Tab with Enter to activate
 - **External focusable items** for integrating non-Markdown elements (e.g. email headers) into the Tab ring
 - **Three built-in themes** (Default, High Contrast, Colorful) with custom theme support
-- **Scrollable content** with scrollbar indicator and ratio-based scroll control
+- **Scrollable content** with scrollbar indicator, mouse wheel, PageUp/PageDown, Home/End, and ratio-based scroll control
 - **UTF-8 and CJK support** with correct wide character handling
 - **Parser abstraction** -- cmark-gfm is fully hidden behind a clean interface
 - **CMake install targets** with `find_package` support

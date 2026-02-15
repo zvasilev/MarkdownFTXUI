@@ -1,10 +1,7 @@
 #include "screens.hpp"
 #include "common.hpp"
 
-#include <algorithm>
-
 #include <ftxui/component/event.hpp>
-#include <ftxui/component/mouse.hpp>
 
 #include "markdown/parser.hpp"
 #include "markdown/viewer.hpp"
@@ -77,7 +74,6 @@ ftxui::Component make_viewer_screen(
     viewer->show_scrollbar(true);
 
     auto link_url = std::make_shared<std::string>();
-    auto scroll = std::make_shared<float>(0.0f);
 
     viewer->on_link_click(
         [link_url](std::string const& url, markdown::LinkEvent) {
@@ -102,40 +98,22 @@ ftxui::Component make_viewer_screen(
                 theme_index = (theme_index + 1) % 3;
                 return true;
             }
-            if (ev.is_mouse()) {
-                auto& m = ev.mouse();
-                if (m.button == ftxui::Mouse::WheelUp) {
-                    *scroll = std::max(0.0f, *scroll - 0.05f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
-                if (m.button == ftxui::Mouse::WheelDown) {
-                    *scroll = std::min(1.0f, *scroll + 0.05f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
-            }
+            // When inactive, arrow/page keys scroll via viewer API.
+            // Wheel and active-mode scroll are handled by ViewerWrap.
             if (!viewer->active()) {
-                if (ev == ftxui::Event::ArrowDown) {
-                    *scroll = std::min(1.0f, *scroll + 0.05f);
-                    viewer->set_scroll(*scroll);
+                constexpr float kStep = 0.05f;
+                constexpr float kPageStep = 0.3f;
+                auto adjust = [&](float delta) {
+                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
+                    viewer->set_scroll(s);
                     return true;
-                }
-                if (ev == ftxui::Event::ArrowUp) {
-                    *scroll = std::max(0.0f, *scroll - 0.05f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
-                if (ev == ftxui::Event::PageDown) {
-                    *scroll = std::min(1.0f, *scroll + 0.3f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
-                if (ev == ftxui::Event::PageUp) {
-                    *scroll = std::max(0.0f, *scroll - 0.3f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
+                };
+                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
+                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
+                if (ev == ftxui::Event::PageDown) return adjust(kPageStep);
+                if (ev == ftxui::Event::PageUp) return adjust(-kPageStep);
+                if (ev == ftxui::Event::Home) return adjust(-viewer->scroll());
+                if (ev == ftxui::Event::End) return adjust(1.0f - viewer->scroll());
             }
             return false;
         });
@@ -153,7 +131,7 @@ ftxui::Component make_viewer_screen(
             status_parts.push_back(ftxui::filler());
             status_parts.push_back(
                 ftxui::text(
-                    " Up/Down/PgUp/PgDn:scroll  Left/Right:theme  Enter:links  Esc:back")
+                    " Scroll:Arrows/PgUp/PgDn/Home/End  Theme:Left/Right  Enter:links  Esc:back")
                     | ftxui::dim);
 
             return ftxui::vbox({

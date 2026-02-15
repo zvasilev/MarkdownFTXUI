@@ -35,6 +35,14 @@ struct ViewerFixture {
         comp->OnEvent(ftxui::Event::Return);
     }
 
+    // Viewport-proportional page step (matches ViewerWrap::page_step()).
+    float page_step() const {
+        auto const& si = viewer.scroll_info();
+        if (si.content_height <= si.viewport_height) return 1.0f;
+        return static_cast<float>(si.viewport_height)
+             / static_cast<float>(si.content_height);
+    }
+
     ftxui::Event wheel(ftxui::Mouse::Button btn) {
         ftxui::Mouse m;
         m.button = btn;
@@ -52,52 +60,63 @@ bool approx(float a, float b, float eps = 0.001f) {
 } // namespace
 
 int main() {
-    // Test 1: PageDown increases scroll by 0.3
+    // Test 1: ScrollInfo is populated after render
+    {
+        ViewerFixture f;
+        auto const& si = f.viewer.scroll_info();
+        ASSERT_TRUE(si.viewport_height > 0);
+        ASSERT_TRUE(si.content_height > si.viewport_height);
+    }
+
+    // Test 2: PageDown increases scroll by viewport-proportional step
     {
         ViewerFixture f;
         f.activate();
+        float step = f.page_step();
+        ASSERT_TRUE(step > 0.0f);
+        ASSERT_TRUE(step < 1.0f);
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
         f.comp->OnEvent(ftxui::Event::PageDown);
-        ASSERT_TRUE(approx(f.viewer.scroll(), 0.3f));
+        ASSERT_TRUE(approx(f.viewer.scroll(), step));
     }
 
-    // Test 2: PageUp decreases scroll by 0.3
+    // Test 3: PageUp decreases scroll by the same step
     {
         ViewerFixture f;
         f.activate();
+        float step = f.page_step();
         f.viewer.set_scroll(0.5f);
         f.comp->OnEvent(ftxui::Event::PageUp);
-        ASSERT_TRUE(approx(f.viewer.scroll(), 0.2f));
+        ASSERT_TRUE(approx(f.viewer.scroll(), 0.5f - step));
     }
 
-    // Test 3: PageDown clamps to 1.0
+    // Test 4: PageDown clamps to 1.0
     {
         ViewerFixture f;
         f.activate();
-        f.viewer.set_scroll(0.9f);
+        f.viewer.set_scroll(1.0f - f.page_step() * 0.5f);
         f.comp->OnEvent(ftxui::Event::PageDown);
         ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
     }
 
-    // Test 4: PageUp clamps to 0.0
+    // Test 5: PageUp clamps to 0.0
     {
         ViewerFixture f;
         f.activate();
-        f.viewer.set_scroll(0.1f);
+        f.viewer.set_scroll(f.page_step() * 0.5f);
         f.comp->OnEvent(ftxui::Event::PageUp);
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
     }
 
-    // Test 5: WheelDown increases scroll by 0.05
+    // Test 6: WheelDown increases scroll by 0.05
     {
         ViewerFixture f;
-        // Wheel scroll works without activation.
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
         f.comp->OnEvent(f.wheel(ftxui::Mouse::WheelDown));
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.05f));
     }
 
-    // Test 6: WheelUp decreases scroll by 0.05
+    // Test 7: WheelUp decreases scroll by 0.05
     {
         ViewerFixture f;
         f.viewer.set_scroll(0.5f);
@@ -105,7 +124,7 @@ int main() {
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.45f));
     }
 
-    // Test 7: WheelDown clamps to 1.0
+    // Test 8: WheelDown clamps to 1.0
     {
         ViewerFixture f;
         f.viewer.set_scroll(0.98f);
@@ -113,7 +132,7 @@ int main() {
         ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
     }
 
-    // Test 8: WheelUp clamps to 0.0
+    // Test 9: WheelUp clamps to 0.0
     {
         ViewerFixture f;
         f.viewer.set_scroll(0.02f);
@@ -121,28 +140,52 @@ int main() {
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
     }
 
-    // Test 9: Multiple PageDown + PageUp round-trip
+    // Test 10: Home jumps to top
     {
         ViewerFixture f;
         f.activate();
-        f.comp->OnEvent(ftxui::Event::PageDown); // 0.3
-        f.comp->OnEvent(ftxui::Event::PageDown); // 0.6
-        f.comp->OnEvent(ftxui::Event::PageDown); // 0.9
-        f.comp->OnEvent(ftxui::Event::PageDown); // 1.0 (clamped)
-        ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
-        f.comp->OnEvent(ftxui::Event::PageUp);   // 0.7
-        ASSERT_TRUE(approx(f.viewer.scroll(), 0.7f));
+        f.viewer.set_scroll(0.7f);
+        f.comp->OnEvent(ftxui::Event::Home);
+        ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
     }
 
-    // Test 10: Tab ring mode — PageUp/PageDown work with externals
+    // Test 11: End jumps to bottom
+    {
+        ViewerFixture f;
+        f.activate();
+        f.viewer.set_scroll(0.3f);
+        f.comp->OnEvent(ftxui::Event::End);
+        ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
+    }
+
+    // Test 12: Home at top stays at 0
+    {
+        ViewerFixture f;
+        f.activate();
+        f.comp->OnEvent(ftxui::Event::Home);
+        ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
+    }
+
+    // Test 13: End at bottom stays at 1
+    {
+        ViewerFixture f;
+        f.activate();
+        f.viewer.set_scroll(1.0f);
+        f.comp->OnEvent(ftxui::Event::End);
+        ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
+    }
+
+    // Test 14: Tab ring mode — PageUp/PageDown + Home/End work with externals
     {
         ViewerFixture f;
         f.viewer.add_focusable("Reply", "reply");
-        // Re-render to pick up externals.
         ftxui::Render(f.screen, f.comp->Render());
+        float step = f.page_step();
         f.comp->OnEvent(ftxui::Event::PageDown);
-        ASSERT_TRUE(approx(f.viewer.scroll(), 0.3f));
-        f.comp->OnEvent(ftxui::Event::PageUp);
+        ASSERT_TRUE(approx(f.viewer.scroll(), step));
+        f.comp->OnEvent(ftxui::Event::End);
+        ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
+        f.comp->OnEvent(ftxui::Event::Home);
         ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
     }
 

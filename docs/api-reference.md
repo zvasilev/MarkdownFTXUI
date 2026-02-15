@@ -180,9 +180,21 @@ public:
     // Query current scroll ratio.
     float scroll() const;
 
+    // Query viewport/content height info (populated after render).
+    ScrollInfo const& scroll_info() const;
+
     // Query scrollbar visibility.
     bool scrollbar_visible() const;
 ```
+
+The built-in component handles scrolling via keyboard and mouse:
+
+| Input | Action |
+|-------|--------|
+| Arrow Up/Down | Scroll by 5% |
+| Page Up/Down | Scroll by one viewport height (proportional) |
+| Home / End | Jump to top / bottom |
+| Mouse Wheel | Scroll by 5% per tick |
 
 #### Link Interaction
 
@@ -375,7 +387,18 @@ public:
 
     // Set cursor position by line and column (1-based).
     void set_cursor(int line, int col);
+
+    // Move cursor up (negative) or down (positive) by delta lines,
+    // preserving the current column. Clamped to document bounds.
+    void move_cursor_lines(int delta);
 ```
+
+The built-in component handles scrolling via keyboard and mouse:
+
+| Input | Action |
+|-------|--------|
+| Page Up/Down | Move cursor by 20 lines |
+| Mouse Wheel | Move cursor by 3 lines per tick |
 
 #### Theming
 
@@ -612,12 +635,24 @@ editor->set_theme(my_theme);
 
 ## scroll_frame.hpp -- Custom Scroll Container
 
+### ScrollInfo (struct)
+
+```cpp
+struct ScrollInfo {
+    int viewport_height = 0;
+    int content_height = 0;
+};
+```
+
+Populated by `DirectScrollFrame` during layout. Provides the viewport and content dimensions needed for proportional scroll calculations (e.g. viewport-sized page steps).
+
 ### DirectScrollFrame (class)
 
 ```cpp
 class DirectScrollFrame : public ftxui::Node {
 public:
-    DirectScrollFrame(ftxui::Element child, float ratio);
+    DirectScrollFrame(ftxui::Element child, float ratio,
+                      ScrollInfo* info = nullptr);
 };
 ```
 
@@ -625,13 +660,16 @@ A custom FTXUI Node that scrolls its child by a direct ratio. The scroll offset 
 
 Unlike FTXUI's `yframe`, which centers the element that has `ftxui::focus`, DirectScrollFrame ignores focus and positions purely by ratio.
 
+If a `ScrollInfo*` is provided, the viewport and content heights are written to it during layout.
+
 ### direct_scroll()
 
 ```cpp
-ftxui::Element direct_scroll(ftxui::Element child, float ratio);
+ftxui::Element direct_scroll(ftxui::Element child, float ratio,
+                              ScrollInfo* info = nullptr);
 ```
 
-Convenience function that creates a DirectScrollFrame.
+Convenience function that creates a DirectScrollFrame. Pass a `ScrollInfo*` to capture layout dimensions.
 
 ### Example: Scrollable Content
 
@@ -644,14 +682,16 @@ for (int i = 0; i < 100; ++i) {
 }
 
 float scroll_ratio = 0.5f;  // Middle of content
+markdown::ScrollInfo info;
 auto scrollable = markdown::direct_scroll(
     ftxui::vbox(std::move(lines)) | ftxui::vscroll_indicator,
-    scroll_ratio);
+    scroll_ratio, &info);
 
 // Render in a fixed viewport
 auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(40),
                                      ftxui::Dimension::Fixed(10));
 ftxui::Render(screen, scrollable);
+// After render: info.viewport_height and info.content_height are set.
 ```
 
 ---

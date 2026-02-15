@@ -64,6 +64,9 @@ bool Viewer::is_link_focused() const {
 
 namespace {
 
+constexpr float kScrollArrowStep = 0.05f;
+constexpr float kScrollWheelStep = 0.05f;
+
 // Wrapper with built-in scroll and link navigation for the viewer.
 // Two modes:
 //   Tab ring (externals registered): Tab/arrows always work, no Enter gate.
@@ -75,14 +78,17 @@ class ViewerWrap : public ftxui::ComponentBase {
     DomBuilder& _builder;
     std::vector<ExternalFocusable>& _externals;
     std::function<void(std::string const&, LinkEvent)>& _link_callback;
+    ScrollInfo const& _scroll_info;
 public:
     ViewerWrap(ftxui::Component child, bool& active, float& scroll,
                int& focus_index, DomBuilder& builder,
                std::vector<ExternalFocusable>& externals,
-               std::function<void(std::string const&, LinkEvent)>& link_cb)
+               std::function<void(std::string const&, LinkEvent)>& link_cb,
+               ScrollInfo const& scroll_info)
         : _active(active), _scroll_ratio(scroll),
           _focus_index(focus_index), _builder(builder),
-          _externals(externals), _link_callback(link_cb) {
+          _externals(externals), _link_callback(link_cb),
+          _scroll_info(scroll_info) {
         Add(std::move(child));
     }
 
@@ -94,14 +100,10 @@ public:
         // Mouse: wheel scroll + activate on click (both modes)
         if (event.is_mouse()) {
             auto& m = event.mouse();
-            if (m.button == ftxui::Mouse::WheelUp) {
-                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
-                return true;
-            }
-            if (m.button == ftxui::Mouse::WheelDown) {
-                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
-                return true;
-            }
+            if (m.button == ftxui::Mouse::WheelUp)
+                return scroll_by(-kScrollWheelStep);
+            if (m.button == ftxui::Mouse::WheelDown)
+                return scroll_by(kScrollWheelStep);
             if (m.button == ftxui::Mouse::Left &&
                 m.motion == ftxui::Mouse::Pressed) {
                 _active = true;
@@ -120,22 +122,18 @@ public:
                 cycle_focus(-1);
                 return true;
             }
-            if (event == ftxui::Event::ArrowUp) {
-                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
-                return true;
-            }
-            if (event == ftxui::Event::ArrowDown) {
-                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
-                return true;
-            }
-            if (event == ftxui::Event::PageUp) {
-                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.3f);
-                return true;
-            }
-            if (event == ftxui::Event::PageDown) {
-                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.3f);
-                return true;
-            }
+            if (event == ftxui::Event::ArrowUp)
+                return scroll_by(-kScrollArrowStep);
+            if (event == ftxui::Event::ArrowDown)
+                return scroll_by(kScrollArrowStep);
+            if (event == ftxui::Event::PageUp)
+                return scroll_by(-page_step());
+            if (event == ftxui::Event::PageDown)
+                return scroll_by(page_step());
+            if (event == ftxui::Event::Home)
+                return scroll_by(-_scroll_ratio);
+            if (event == ftxui::Event::End)
+                return scroll_by(1.0f - _scroll_ratio);
             if (event == ftxui::Event::Return) {
                 if (_focus_index >= 0) {
                     notify_focus(LinkEvent::Press);
@@ -171,22 +169,18 @@ public:
                 }
                 return false;
             }
-            if (event == ftxui::Event::ArrowUp) {
-                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
-                return true;
-            }
-            if (event == ftxui::Event::ArrowDown) {
-                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
-                return true;
-            }
-            if (event == ftxui::Event::PageUp) {
-                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.3f);
-                return true;
-            }
-            if (event == ftxui::Event::PageDown) {
-                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.3f);
-                return true;
-            }
+            if (event == ftxui::Event::ArrowUp)
+                return scroll_by(-kScrollArrowStep);
+            if (event == ftxui::Event::ArrowDown)
+                return scroll_by(kScrollArrowStep);
+            if (event == ftxui::Event::PageUp)
+                return scroll_by(-page_step());
+            if (event == ftxui::Event::PageDown)
+                return scroll_by(page_step());
+            if (event == ftxui::Event::Home)
+                return scroll_by(-_scroll_ratio);
+            if (event == ftxui::Event::End)
+                return scroll_by(1.0f - _scroll_ratio);
             return false;
         }
         if (event == ftxui::Event::Return) {
@@ -197,6 +191,19 @@ public:
     }
 
 private:
+    bool scroll_by(float delta) {
+        _scroll_ratio = std::clamp(_scroll_ratio + delta, 0.0f, 1.0f);
+        return true;
+    }
+
+    float page_step() const {
+        if (_scroll_info.viewport_height > 0 &&
+            _scroll_info.content_height > _scroll_info.viewport_height)
+            return static_cast<float>(_scroll_info.viewport_height)
+                 / static_cast<float>(_scroll_info.content_height);
+        return 0.3f; // fallback for embed mode or before first render
+    }
+
     int ext_count() const { return static_cast<int>(_externals.size()); }
     int link_count() const {
         return static_cast<int>(_builder.link_targets().size());
@@ -276,7 +283,7 @@ ftxui::Component Viewer::component() {
         // When a link is focused, yframe scrolls to the ftxui::focus
         // element. Otherwise use direct_scroll for linear offset.
         if (_focused_link < 0) {
-            el = direct_scroll(std::move(el), _scroll_ratio);
+            el = direct_scroll(std::move(el), _scroll_ratio, &_scroll_info);
         } else {
             el = el | ftxui::yframe;
         }
@@ -315,7 +322,7 @@ ftxui::Component Viewer::component() {
     // Wrap with active + scroll + link navigation behavior
     _component = std::make_shared<ViewerWrap>(
         inner, _active, _scroll_ratio, _focus_index,
-        _builder, _externals, _link_callback);
+        _builder, _externals, _link_callback, _scroll_info);
     return _component;
 }
 

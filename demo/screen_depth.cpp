@@ -1,7 +1,6 @@
 #include "screens.hpp"
 #include "common.hpp"
 
-#include <algorithm>
 #include <string>
 
 #include <ftxui/component/event.hpp>
@@ -55,7 +54,6 @@ ftxui::Component make_depth_screen(
     viewer->set_max_quote_depth(10);
 
     auto viewer_comp = viewer->component();
-    auto scroll = std::make_shared<float>(0.0f);
 
     auto with_keys = ftxui::CatchEvent(viewer_comp,
         [=, &theme_index](ftxui::Event ev) {
@@ -87,18 +85,21 @@ ftxui::Component make_depth_screen(
                     std::max(1, viewer->max_quote_depth() - 1));
                 return true;
             }
-            // Scroll
+            // Scroll when inactive (wheel + active handled by ViewerWrap)
             if (!viewer->active()) {
-                if (ev == ftxui::Event::ArrowDown) {
-                    *scroll = std::min(1.0f, *scroll + 0.03f);
-                    viewer->set_scroll(*scroll);
+                constexpr float kStep = 0.03f;
+                constexpr float kPageStep = 0.3f;
+                auto adjust = [&](float delta) {
+                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
+                    viewer->set_scroll(s);
                     return true;
-                }
-                if (ev == ftxui::Event::ArrowUp) {
-                    *scroll = std::max(0.0f, *scroll - 0.03f);
-                    viewer->set_scroll(*scroll);
-                    return true;
-                }
+                };
+                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
+                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
+                if (ev == ftxui::Event::PageDown) return adjust(kPageStep);
+                if (ev == ftxui::Event::PageUp) return adjust(-kPageStep);
+                if (ev == ftxui::Event::Home) return adjust(-viewer->scroll());
+                if (ev == ftxui::Event::End) return adjust(1.0f - viewer->scroll());
             }
             return false;
         });
@@ -126,8 +127,8 @@ ftxui::Component make_depth_screen(
                 }) | ftxui::border | ftxui::flex,
                 ftxui::hbox({
                     ftxui::text(
-                        " Up/Down:scroll  Left/Right:theme  "
-                        "+/-:indent  Tab:links  Esc:back ") | ftxui::dim,
+                        " Scroll:Arrows/PgUp/PgDn/Home/End  Theme:Left/Right  "
+                        "+/-:indent  Tab:links  Esc:back") | ftxui::dim,
                 }),
             });
         });

@@ -101,6 +101,8 @@ viewer->set_scroll(ratio);                // Cursor-synced scroll
 | Enter | Activate focused component (enter edit mode) |
 | Esc | Deactivate component; if already inactive, return to menu |
 | Arrow keys | Edit text (in editor) or scroll (in viewer, when active) |
+| Page Up/Down | Move cursor by 20 lines (editor) or scroll viewport (viewer) |
+| Mouse Wheel | Move cursor by 3 lines (editor) or scroll 5% (viewer) |
 
 ---
 
@@ -122,7 +124,7 @@ A full-window Markdown viewer with a scrollbar, link navigation, and theme cycli
  │ You can write in bold, italic, bold italic, ░│
  │ and inline code.                            ░│
  └─────────────────────────────────────────────┘
-  https://example.com/bullet         Up/Down:scroll  ...
+  https://example.com/bullet    Scroll:Arrows/PgUp/PgDn/Home/End  ...
 ```
 
 ### Features
@@ -130,7 +132,8 @@ A full-window Markdown viewer with a scrollbar, link navigation, and theme cycli
 - **Scrollbar**: Vertical scroll indicator on the right edge
 - **Link navigation**: Tab cycles through links (highlighted with inverted style when focused), Enter activates
 - **Link URL display**: The status bar at the bottom shows the URL of the focused/clicked link
-- **Arrow scrolling**: Up/Down arrows scroll content incrementally (5% per press)
+- **Keyboard scrolling**: Up/Down arrows (5%), PageUp/PageDown (one viewport), Home/End (jump to top/bottom)
+- **Mouse wheel**: Scrolls content by 5% per tick
 - **Theme cycling**: Left/Right arrows switch between the three themes
 - **Auto-activation**: Tab automatically activates the viewer for link navigation
 
@@ -152,7 +155,10 @@ viewer->on_link_click(
 
 | Key | Action |
 |-----|--------|
-| Arrow Up/Down | Scroll content |
+| Arrow Up/Down | Scroll content (5% per press) |
+| Page Up/Down | Scroll by one viewport height |
+| Home / End | Jump to top / bottom |
+| Mouse Wheel | Scroll content (5% per tick) |
 | Arrow Left/Right | Cycle themes |
 | Tab / Shift+Tab | Cycle through links |
 | Enter | Activate viewer (if inactive) or press focused link |
@@ -179,7 +185,7 @@ A simulated email view combining header fields and a Markdown body in a single s
  │ sprint review. Please review and add any     ░│
  │ comments by end of day.                      ░│
  └──────────────────────────────────────────────┘
-  Alice <alice@example.com>    Tab:cycle  Up/Down:scroll  ...
+  Alice <alice@example.com>    Tab:cycle  Scroll:Arrows/PgUp/PgDn/Home/End  ...
 ```
 
 ### Features
@@ -225,7 +231,10 @@ else
 | Key | Action |
 |-----|--------|
 | Tab / Shift+Tab | Cycle through headers then links |
-| Arrow Up/Down | Scroll content |
+| Arrow Up/Down | Scroll content (5% per press) |
+| Page Up/Down | Scroll by one viewport height |
+| Home / End | Jump to top / bottom |
+| Mouse Wheel | Scroll content (5% per tick) |
 | Arrow Left/Right | Cycle themes |
 | Enter | Press focused item (shows value in status bar) |
 | Esc | Return to menu |
@@ -240,10 +249,15 @@ else
 | Esc | Quit app | Deactivate / back to menu | Deactivate / back to menu | Back to menu |
 | Tab | Theme toggle | Cycle components | Cycle links | Cycle headers + links |
 | Shift+Tab | Theme toggle | Cycle components (reverse) | Cycle links (reverse) | Cycle (reverse) |
-| Arrow Up | Menu navigate | Edit / Scroll | Scroll | Scroll |
-| Arrow Down | Menu navigate | Edit / Scroll | Scroll | Scroll |
+| Arrow Up | Menu navigate | Edit / Scroll | Scroll (5%) | Scroll (5%) |
+| Arrow Down | Menu navigate | Edit / Scroll | Scroll (5%) | Scroll (5%) |
 | Arrow Left | -- | Edit | Theme cycle | Theme cycle |
 | Arrow Right | -- | Edit | Theme cycle | Theme cycle |
+| Page Up | -- | Cursor -20 lines | Scroll viewport | Scroll viewport |
+| Page Down | -- | Cursor +20 lines | Scroll viewport | Scroll viewport |
+| Home | -- | Line start (FTXUI) | Jump to top | Jump to top |
+| End | -- | Line end (FTXUI) | Jump to bottom | Jump to bottom |
+| Mouse Wheel | -- | Cursor ±3 lines | Scroll (5%) | Scroll (5%) |
 
 ## Demo Source Files
 

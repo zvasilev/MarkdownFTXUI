@@ -111,6 +111,10 @@ void Editor::update_cursor_info() {
 // Selectable wrapper: gates keyboard events based on _active.
 // When not selected, returns false so the parent container navigates.
 namespace {
+
+constexpr int kWheelLines = 3;
+constexpr int kPageLines = 20;
+
 class SelectableWrap : public ftxui::ComponentBase {
     bool& _active;
     Editor& _editor;
@@ -126,11 +130,11 @@ public:
         if (event.is_mouse()) {
             auto& m = event.mouse();
             if (m.button == ftxui::Mouse::WheelUp) {
-                _editor.move_cursor_lines(-3);
+                _editor.move_cursor_lines(-kWheelLines);
                 return true;
             }
             if (m.button == ftxui::Mouse::WheelDown) {
-                _editor.move_cursor_lines(3);
+                _editor.move_cursor_lines(kWheelLines);
                 return true;
             }
             if (m.button == ftxui::Mouse::Left &&
@@ -146,11 +150,11 @@ public:
                 return true;
             }
             if (event == ftxui::Event::PageUp) {
-                _editor.move_cursor_lines(-20);
+                _editor.move_cursor_lines(-kPageLines);
                 return true;
             }
             if (event == ftxui::Event::PageDown) {
-                _editor.move_cursor_lines(20);
+                _editor.move_cursor_lines(kPageLines);
                 return true;
             }
             if (event == ftxui::Event::Tab || event == ftxui::Event::TabReverse) {

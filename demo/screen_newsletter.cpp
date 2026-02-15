@@ -139,7 +139,7 @@ ftxui::Component make_newsletter_screen(
                             | ftxui::dim | ftxui::underlined,
                     ftxui::filler(),
                     ftxui::text(
-                        " n/p:snippet  Tab:cycle  Up/Down:scroll  Left/Right:theme  Esc:back ")
+                        " n/p:snippet  Tab:cycle  Scroll:Arrows/PgUp/PgDn/Home/End  Theme:Left/Right  Esc:back")
                         | ftxui::dim,
                 }),
             });
