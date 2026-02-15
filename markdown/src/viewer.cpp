@@ -91,10 +91,19 @@ public:
     bool OnEvent(ftxui::Event event) override {
         bool has_ring = !_externals.empty();
 
-        // Mouse: activate + take focus (both modes)
+        // Mouse: wheel scroll + activate on click (both modes)
         if (event.is_mouse()) {
-            if (event.mouse().button == ftxui::Mouse::Left &&
-                event.mouse().motion == ftxui::Mouse::Pressed) {
+            auto& m = event.mouse();
+            if (m.button == ftxui::Mouse::WheelUp) {
+                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.05f);
+                return true;
+            }
+            if (m.button == ftxui::Mouse::WheelDown) {
+                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
+                return true;
+            }
+            if (m.button == ftxui::Mouse::Left &&
+                m.motion == ftxui::Mouse::Pressed) {
                 _active = true;
                 TakeFocus();
             }
@@ -117,6 +126,14 @@ public:
             }
             if (event == ftxui::Event::ArrowDown) {
                 _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
+                return true;
+            }
+            if (event == ftxui::Event::PageUp) {
+                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.3f);
+                return true;
+            }
+            if (event == ftxui::Event::PageDown) {
+                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.3f);
                 return true;
             }
             if (event == ftxui::Event::Return) {
@@ -160,6 +177,14 @@ public:
             }
             if (event == ftxui::Event::ArrowDown) {
                 _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.05f);
+                return true;
+            }
+            if (event == ftxui::Event::PageUp) {
+                _scroll_ratio = std::max(0.0f, _scroll_ratio - 0.3f);
+                return true;
+            }
+            if (event == ftxui::Event::PageDown) {
+                _scroll_ratio = std::min(1.0f, _scroll_ratio + 0.3f);
                 return true;
             }
             return false;

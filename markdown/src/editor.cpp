@@ -58,6 +58,12 @@ std::vector<std::string_view> const& Editor::cached_lines() {
     return _cached_lines;
 }
 
+void Editor::move_cursor_lines(int delta) {
+    update_cursor_info();
+    int target = std::clamp(_cursor_line + delta, 1, _total_lines);
+    set_cursor(target, _cursor_col);
+}
+
 void Editor::update_cursor_info() {
     // Fast path: skip if content and cursor haven't changed.
     if (_content.data() == _ci_data &&
@@ -107,9 +113,10 @@ void Editor::update_cursor_info() {
 namespace {
 class SelectableWrap : public ftxui::ComponentBase {
     bool& _active;
+    Editor& _editor;
 public:
-    SelectableWrap(ftxui::Component child, bool& selected)
-        : _active(selected) {
+    SelectableWrap(ftxui::Component child, bool& selected, Editor& editor)
+        : _active(selected), _editor(editor) {
         Add(std::move(child));
     }
 
@@ -117,8 +124,17 @@ public:
 
     bool OnEvent(ftxui::Event event) override {
         if (event.is_mouse()) {
-            if (event.mouse().button == ftxui::Mouse::Left &&
-                event.mouse().motion == ftxui::Mouse::Pressed) {
+            auto& m = event.mouse();
+            if (m.button == ftxui::Mouse::WheelUp) {
+                _editor.move_cursor_lines(-3);
+                return true;
+            }
+            if (m.button == ftxui::Mouse::WheelDown) {
+                _editor.move_cursor_lines(3);
+                return true;
+            }
+            if (m.button == ftxui::Mouse::Left &&
+                m.motion == ftxui::Mouse::Pressed) {
                 _active = true;
                 TakeFocus();
             }
@@ -127,6 +143,14 @@ public:
         if (_active) {
             if (event == ftxui::Event::Escape) {
                 _active = false;
+                return true;
+            }
+            if (event == ftxui::Event::PageUp) {
+                _editor.move_cursor_lines(-20);
+                return true;
+            }
+            if (event == ftxui::Event::PageDown) {
+                _editor.move_cursor_lines(20);
                 return true;
             }
             if (event == ftxui::Event::Tab || event == ftxui::Event::TabReverse) {
@@ -218,7 +242,7 @@ ftxui::Component Editor::component() {
     });
 
     // Wrap with selectable behavior
-    _component = std::make_shared<SelectableWrap>(inner, _active);
+    _component = std::make_shared<SelectableWrap>(inner, _active, *this);
     return _component;
 }
 

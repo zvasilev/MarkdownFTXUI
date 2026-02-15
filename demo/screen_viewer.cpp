@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <ftxui/component/event.hpp>
+#include <ftxui/component/mouse.hpp>
 
 #include "markdown/parser.hpp"
 #include "markdown/viewer.hpp"
@@ -101,6 +102,19 @@ ftxui::Component make_viewer_screen(
                 theme_index = (theme_index + 1) % 3;
                 return true;
             }
+            if (ev.is_mouse()) {
+                auto& m = ev.mouse();
+                if (m.button == ftxui::Mouse::WheelUp) {
+                    *scroll = std::max(0.0f, *scroll - 0.05f);
+                    viewer->set_scroll(*scroll);
+                    return true;
+                }
+                if (m.button == ftxui::Mouse::WheelDown) {
+                    *scroll = std::min(1.0f, *scroll + 0.05f);
+                    viewer->set_scroll(*scroll);
+                    return true;
+                }
+            }
             if (!viewer->active()) {
                 if (ev == ftxui::Event::ArrowDown) {
                     *scroll = std::min(1.0f, *scroll + 0.05f);
@@ -109,6 +123,16 @@ ftxui::Component make_viewer_screen(
                 }
                 if (ev == ftxui::Event::ArrowUp) {
                     *scroll = std::max(0.0f, *scroll - 0.05f);
+                    viewer->set_scroll(*scroll);
+                    return true;
+                }
+                if (ev == ftxui::Event::PageDown) {
+                    *scroll = std::min(1.0f, *scroll + 0.3f);
+                    viewer->set_scroll(*scroll);
+                    return true;
+                }
+                if (ev == ftxui::Event::PageUp) {
+                    *scroll = std::max(0.0f, *scroll - 0.3f);
                     viewer->set_scroll(*scroll);
                     return true;
                 }
@@ -129,7 +153,7 @@ ftxui::Component make_viewer_screen(
             status_parts.push_back(ftxui::filler());
             status_parts.push_back(
                 ftxui::text(
-                    " Up/Down:scroll  Left/Right:theme  Enter:links  Esc:back ")
+                    " Up/Down/PgUp/PgDn:scroll  Left/Right:theme  Enter:links  Esc:back")
                     | ftxui::dim);
 
             return ftxui::vbox({

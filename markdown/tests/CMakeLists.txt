@@ -90,6 +90,14 @@ add_executable(test_scroll_frame test_scroll_frame.cpp)
 target_link_libraries(test_scroll_frame PRIVATE markdown-ui)
 add_test(NAME test_scroll_frame COMMAND test_scroll_frame)
 
+add_executable(test_viewer_scroll test_viewer_scroll.cpp)
+target_link_libraries(test_viewer_scroll PRIVATE markdown-ui)
+add_test(NAME test_viewer_scroll COMMAND test_viewer_scroll)
+
+add_executable(test_editor_scroll test_editor_scroll.cpp)
+target_link_libraries(test_editor_scroll PRIVATE markdown-ui)
+add_test(NAME test_editor_scroll COMMAND test_editor_scroll)
+
 add_executable(test_snippets test_snippets.cpp)
 target_link_libraries(test_snippets PRIVATE markdown-ui)
 target_compile_definitions(test_snippets PRIVATE

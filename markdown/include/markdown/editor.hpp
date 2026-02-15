@@ -35,6 +35,7 @@ public:
 
     void set_cursor_position(int byte_offset);
     void set_cursor(int line, int col);
+    void move_cursor_lines(int delta);
     void set_theme(Theme const& theme) { _theme = theme; }
 
 private:
