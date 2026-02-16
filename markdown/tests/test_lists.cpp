@@ -176,5 +176,23 @@ int main() {
         ASSERT_EQ(ast.children[1].type, NodeType::BulletList);
     }
 
+    // Test 14: List item with link wraps instead of clipping
+    {
+        auto ast = parser->parse(
+            "* [Access Copilot through its SDK:](https://example.com)"
+            " Released in technical preview, you can access Copilot"
+            " through several languages.");
+        auto element = builder.build(ast);
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(4));
+        ftxui::Render(screen, element);
+        auto output = screen.ToString();
+        // Full link title must be visible (was truncated before fix)
+        ASSERT_CONTAINS(output, "Access Copilot through its SDK:");
+        // Description text must wrap, not be clipped
+        ASSERT_CONTAINS(output, "Released");
+        ASSERT_CONTAINS(output, "languages");
+    }
+
     return 0;
 }

@@ -269,12 +269,12 @@ ftxui::Element build_list_item(ASTNode const& node, int depth, int qd,
     for (auto const& child : node.children) {
         if (first_para && (child.type == NodeType::Paragraph ||
                            child.type == NodeType::Text)) {
-            // First paragraph: render inline with bullet/number prefix
-            auto content = build_inline_container(child, depth, qd, mqd,
-                                                  links, focused_link, theme);
+            // First paragraph: render with wrapping, bullet/number prefix
+            auto content = build_wrapping_container(child, depth, qd, mqd,
+                                                    links, focused_link, theme);
             rows.push_back(ftxui::hbox({
                 ftxui::text(indent + prefix),
-                content,
+                content | ftxui::flex,
             }));
             first_para = false;
         } else {
