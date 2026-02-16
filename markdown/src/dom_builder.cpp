@@ -447,7 +447,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
     case NodeType::CodeBlock:
         return build_code_block(node, theme);
     case NodeType::ThematicBreak:
-        return ftxui::separator();
+        return ftxui::separator() | ftxui::color(ftxui::Color::GrayDark);
     case NodeType::Image:
         return build_image(node, depth, qd, mqd, links, focused_link, theme);
     case NodeType::Text:
