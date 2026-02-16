@@ -127,3 +127,7 @@ add_test(NAME test_perf_unicode COMMAND test_perf_unicode)
 add_executable(test_perf_scroll test_perf_scroll.cpp)
 target_link_libraries(test_perf_scroll PRIVATE markdown-ui)
 add_test(NAME test_perf_scroll COMMAND test_perf_scroll)
+
+add_executable(test_mega_paragraph test_mega_paragraph.cpp)
+target_link_libraries(test_mega_paragraph PRIVATE markdown-ui)
+add_test(NAME test_mega_paragraph COMMAND test_mega_paragraph)

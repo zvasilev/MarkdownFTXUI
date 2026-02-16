@@ -312,8 +312,8 @@ ftxui::Element build_document(ASTNode const& node, int depth, int qd, int mqd,
 ftxui::Element build_heading(ASTNode const& node, int depth, int qd, int mqd,
                              Links& links, int focused_link,
                              Theme const& theme) {
-    auto content = build_inline_container(node, depth, qd, mqd, links,
-                                          focused_link, theme);
+    auto content = build_wrapping_container(node, depth, qd, mqd, links,
+                                            focused_link, theme);
     if (node.level == 1) return content | theme.heading1;
     if (node.level == 2) return content | theme.heading2;
     return content | theme.heading3;
