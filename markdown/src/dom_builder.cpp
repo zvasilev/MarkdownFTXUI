@@ -189,7 +189,9 @@ bool has_hard_break(ASTNode const& node) {
 ftxui::Element words_to_element(ftxui::Elements& words) {
     static const auto wrap_config = ftxui::FlexboxConfig().SetGap(0, 0);
     if (words.empty()) return ftxui::text("");
-    if (words.size() == 1) return std::move(words[0]);
+    // Always use flexbox — even for a single element.  Without this,
+    // a lone underlined link stretches to the full vbox width and its
+    // underline extends across the entire line (looks like a separator).
     return ftxui::flexbox(std::move(words), wrap_config);
 }
 
@@ -447,7 +449,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
     case NodeType::CodeBlock:
         return build_code_block(node, theme);
     case NodeType::ThematicBreak:
-        return ftxui::separator() | ftxui::color(ftxui::Color::GrayDark);
+        return ftxui::separator();
     case NodeType::Image:
         return build_image(node, depth, qd, mqd, links, focused_link, theme);
     case NodeType::Text:
