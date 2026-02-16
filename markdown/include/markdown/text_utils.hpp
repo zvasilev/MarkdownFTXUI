@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -71,9 +72,20 @@ inline uint32_t utf8_codepoint(const char* data, size_t len) {
 }
 
 // Terminal display width of a Unicode codepoint.
-// Returns 2 for CJK Unified Ideographs, Fullwidth forms, and other
-// East Asian Wide characters; 1 otherwise.
+// Returns 0 for combining/ZWJ/VS16, 2 for wide/emoji, 1 otherwise.
 inline int codepoint_width(uint32_t cp) {
+    // Zero-width characters
+    if (cp == 0x200D) return 0;  // ZWJ
+    if (cp == 0xFE0F) return 0;  // VS16 (emoji presentation selector)
+    if (cp == 0xFE0E) return 0;  // VS15 (text presentation selector)
+    // Combining marks (general categories Mn, Mc, Me)
+    if (cp >= 0x0300 && cp <= 0x036F) return 0;  // Combining Diacriticals
+    if (cp >= 0x1AB0 && cp <= 0x1AFF) return 0;  // Combining Diacriticals Extended
+    if (cp >= 0x1DC0 && cp <= 0x1DFF) return 0;  // Combining Diacriticals Supplement
+    if (cp >= 0x20D0 && cp <= 0x20FF) return 0;  // Combining for Symbols
+    if (cp >= 0xFE20 && cp <= 0xFE2F) return 0;  // Combining Half Marks
+    // Skin tone modifiers
+    if (cp >= 0x1F3FB && cp <= 0x1F3FF) return 0;
     // CJK Unified Ideographs
     if (cp >= 0x4E00 && cp <= 0x9FFF) return 2;
     // CJK Extension A
@@ -91,6 +103,16 @@ inline int codepoint_width(uint32_t cp) {
     if (cp >= 0x2E80 && cp <= 0x303E) return 2;
     // Katakana, Hiragana, Bopomofo
     if (cp >= 0x3040 && cp <= 0x33FF) return 2;
+    // Common emoji ranges (wide in terminal)
+    if (cp >= 0x1F600 && cp <= 0x1F64F) return 2;  // Emoticons
+    if (cp >= 0x1F300 && cp <= 0x1F5FF) return 2;  // Misc Symbols & Pictographs
+    if (cp >= 0x1F680 && cp <= 0x1F6FF) return 2;  // Transport & Map
+    if (cp >= 0x1F900 && cp <= 0x1F9FF) return 2;  // Supplemental Symbols
+    if (cp >= 0x1FA00 && cp <= 0x1FA6F) return 2;  // Chess Symbols
+    if (cp >= 0x1FA70 && cp <= 0x1FAFF) return 2;  // Symbols Extended-A
+    if (cp >= 0x2600 && cp <= 0x27BF) return 2;    // Misc Symbols & Dingbats
+    if (cp >= 0x2300 && cp <= 0x23FF) return 2;    // Misc Technical
+    if (cp >= 0x2B50 && cp <= 0x2B55) return 2;    // Stars, circles
     return 1;
 }
 
@@ -137,6 +159,50 @@ inline std::vector<std::string_view> split_lines(std::string_view text) {
         start = end + 1;
     }
     return lines;
+}
+
+// Sanitize emoji sequences for correct FTXUI width measurement:
+// 1. Strip VS16 (U+FE0F) — emoji presentation selector that desyncs widths.
+// 2. Collapse ZWJ (U+200D) sequences — e.g. 🏃‍♂️ becomes just 🏃.
+// Keeps ZWJ for Arabic/Indic ligatures (next codepoint < 0x2000).
+inline std::string normalize_emoji_width(std::string_view text) {
+    // Quick scan: if no multi-byte UTF-8, no emoji possible.
+    bool needs_sanitize = false;
+    for (char c : text) {
+        if (static_cast<unsigned char>(c) >= 0xC0) {
+            needs_sanitize = true;
+            break;
+        }
+    }
+    if (!needs_sanitize) return std::string(text);
+
+    std::string result;
+    result.reserve(text.size());
+    size_t i = 0;
+    while (i < text.size()) {
+        size_t len = utf8_byte_length(text[i]);
+        len = std::min(len, text.size() - i);
+        uint32_t cp = utf8_codepoint(text.data() + i, len);
+
+        // Strip VS16 (emoji presentation selector)
+        if (cp == 0xFE0F) { i += len; continue; }
+
+        // Collapse ZWJ sequences in emoji context
+        if (cp == 0x200D && i + len < text.size()) {
+            size_t next_len = utf8_byte_length(text[i + len]);
+            next_len = std::min(next_len, text.size() - i - len);
+            uint32_t next_cp = utf8_codepoint(text.data() + i + len, next_len);
+            if (next_cp >= 0x2000) {
+                // Skip both ZWJ and the following emoji codepoint
+                i += len + next_len;
+                continue;
+            }
+        }
+
+        result.append(text.data() + i, len);
+        i += len;
+    }
+    return result;
 }
 
 } // namespace markdown

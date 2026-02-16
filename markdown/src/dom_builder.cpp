@@ -1,4 +1,5 @@
 #include "markdown/dom_builder.hpp"
+#include "markdown/text_utils.hpp"
 
 #include <string_view>
 
@@ -27,7 +28,7 @@ std::string collect_text(ASTNode const& root) {
             stack.push_back(&*it);
         }
     }
-    return result;
+    return normalize_emoji_width(result);
 }
 
 // Returns true if the next link to be inserted matches focused_link.
@@ -107,7 +108,7 @@ void collect_inline_words(ASTNode const& node, int depth, int qd, int mqd,
     for (auto const& child : node.children) {
         switch (child.type) {
         case NodeType::Text: {
-            auto const& t = child.text;
+            auto t = normalize_emoji_width(child.text);
             size_t pos = 0;
             while (pos < t.size()) {
                 size_t space_start = pos;
@@ -156,8 +157,8 @@ void collect_inline_words(ASTNode const& node, int depth, int qd, int mqd,
             break;
         }
         case NodeType::CodeInline:
-            words.push_back(ftxui::text(child.text) | theme.code_inline
-                            | style);
+            words.push_back(ftxui::text(normalize_emoji_width(child.text))
+                            | theme.code_inline | style);
             break;
         default:
             words.push_back(build_node(child, depth, qd, mqd, links,
@@ -218,7 +219,7 @@ ftxui::Element build_wrapping_container(ASTNode const& node, int depth, int qd,
                 }
             }
         }
-        return ftxui::paragraph(combined);
+        return ftxui::paragraph(normalize_emoji_width(combined));
     }
 
     // If no hard breaks, single flexbox row (common case).
@@ -371,7 +372,8 @@ ftxui::Element build_blockquote(ASTNode const& node, int depth, int qd,
 }
 
 ftxui::Element build_code_block(ASTNode const& node, Theme const& theme) {
-    std::string_view code = node.text;
+    auto sanitized_code = normalize_emoji_width(node.text);
+    std::string_view code = sanitized_code;
     if (!code.empty() && code.back() == '\n') code.remove_suffix(1);
     ftxui::Elements lines;
     size_t start = 0;
@@ -445,7 +447,7 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
         return build_blockquote(node, depth, qd, mqd, links, focused_link,
                                 theme);
     case NodeType::CodeInline:
-        return ftxui::text(node.text) | theme.code_inline;
+        return ftxui::text(normalize_emoji_width(node.text)) | theme.code_inline;
     case NodeType::CodeBlock:
         return build_code_block(node, theme);
     case NodeType::ThematicBreak:
@@ -453,13 +455,13 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
     case NodeType::Image:
         return build_image(node, depth, qd, mqd, links, focused_link, theme);
     case NodeType::Text:
-        return ftxui::text(node.text);
+        return ftxui::text(normalize_emoji_width(node.text));
     case NodeType::SoftBreak:
         return ftxui::text(" ");
     case NodeType::HardBreak:
         return ftxui::text("");
     default:
-        return ftxui::text(node.text);
+        return ftxui::text(normalize_emoji_width(node.text));
     }
 }
 
