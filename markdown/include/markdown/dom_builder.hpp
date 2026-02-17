@@ -18,7 +18,7 @@ struct LinkTarget {
 };
 
 struct FlatLinkBox {
-    ftxui::Box box;
+    ftxui::Box const* box;  // points into LinkTarget::boxes (filled by reflect)
     int link_index;
 };
 

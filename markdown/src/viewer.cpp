@@ -288,19 +288,11 @@ ftxui::Component Viewer::component() {
             mouse.motion != ftxui::Mouse::Pressed) {
             return false;
         }
-        auto const& flat = _builder.flat_link_boxes();
-        // Binary search for first box where y_min <= mouse.y
-        auto it = std::lower_bound(flat.begin(), flat.end(), mouse.y,
-            [](FlatLinkBox const& fb, int y) { return fb.box.y_min < y; });
-        // Scan backwards for boxes that started before mouse.y but span it
-        while (it != flat.begin()) {
-            auto prev = std::prev(it);
-            if (prev->box.y_max < mouse.y) break;
-            it = prev;
-        }
-        for (; it != flat.end() && it->box.y_min <= mouse.y; ++it) {
-            if (it->box.Contain(mouse.x, mouse.y)) {
-                auto const& link = _builder.link_targets()[it->link_index];
+        // flat_link_boxes stores pointers to live reflect boxes (filled
+        // during layout), so coordinates are always current.
+        for (auto const& fb : _builder.flat_link_boxes()) {
+            if (fb.box->Contain(mouse.x, mouse.y)) {
+                auto const& link = _builder.link_targets()[fb.link_index];
                 if (_link_callback) {
                     _link_callback(link.url, LinkEvent::Press);
                 }

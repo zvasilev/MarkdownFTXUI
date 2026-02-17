@@ -473,17 +473,15 @@ ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link,
     auto result = build_node(ast, 0, 0, _max_quote_depth, _link_targets,
                              focused_link, theme);
 
-    // Build flat sorted index for O(log n) click detection.
+    // Build flat index for click detection.  Stores pointers into
+    // LinkTarget::boxes — reflect() fills them during layout, so the
+    // pointers stay valid and always have fresh coordinates.
     _flat_boxes.clear();
     for (int i = 0; i < static_cast<int>(_link_targets.size()); ++i) {
         for (auto const& box : _link_targets[i].boxes) {
-            _flat_boxes.push_back({box, i});
+            _flat_boxes.push_back({&box, i});
         }
     }
-    std::sort(_flat_boxes.begin(), _flat_boxes.end(),
-              [](FlatLinkBox const& a, FlatLinkBox const& b) {
-                  return a.box.y_min < b.box.y_min;
-              });
 
     return result;
 }
