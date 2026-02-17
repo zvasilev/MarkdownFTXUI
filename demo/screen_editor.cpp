@@ -51,6 +51,13 @@ ftxui::Component make_editor_screen(
 
     auto viewer = std::make_shared<markdown::Viewer>(
         markdown::make_cmark_parser());
+
+    auto link_url = std::make_shared<std::string>();
+    viewer->on_link_click(
+        [link_url](std::string const& url, markdown::LinkEvent) {
+            *link_url = url;
+        });
+
     auto viewer_comp = viewer->component();
 
     auto theme_toggle = ftxui::Toggle(&theme_names, &theme_index);
@@ -100,10 +107,25 @@ ftxui::Component make_editor_screen(
             }) | vw_border
         ) | ftxui::flex;
 
+        ftxui::Elements status_parts;
+        if (!link_url->empty()) {
+            status_parts.push_back(
+                ftxui::text(" " + *link_url + " ")
+                    | ftxui::dim | ftxui::underlined);
+        }
+        status_parts.push_back(ftxui::filler());
+        status_parts.push_back(
+            ftxui::text(" Ln " + std::to_string(editor->cursor_line())
+                + ", Col " + std::to_string(editor->cursor_col()) + " ")
+                | ftxui::dim);
+
         return ftxui::vbox({
             demo::theme_bar(theme_toggle),
             ftxui::hbox({editor_pane, viewer_pane}) | ftxui::flex,
-            ftxui::text(" Enter:select  Esc:back ") | ftxui::dim,
+            ftxui::hbox({
+                ftxui::text(" Enter:select  Esc:back ") | ftxui::dim,
+                ftxui::hbox(std::move(status_parts)) | ftxui::flex,
+            }),
         });
     });
 

@@ -1,7 +1,6 @@
 #include "screens.hpp"
 #include "common.hpp"
 
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -73,7 +72,10 @@ ftxui::Component make_newsletter_screen(
     auto viewer = std::make_shared<markdown::Viewer>(
         markdown::make_cmark_parser());
     viewer->set_content(snippets->read_current());
-    viewer->show_scrollbar(true);
+    viewer->set_embed(true);
+
+    auto scroll_info = std::make_shared<markdown::ScrollInfo>();
+    viewer->set_external_scroll_info(scroll_info.get());
 
     auto headers = std::make_shared<std::vector<HeaderField>>(
         std::vector<HeaderField>{
@@ -93,13 +95,14 @@ ftxui::Component make_newsletter_screen(
         });
 
     viewer->on_tab_exit(
-        [header_focus, headers, status_text](int direction) {
+        [header_focus, headers, status_text, viewer](int direction) {
             if (direction > 0) {
                 *header_focus = 0;
             } else {
                 *header_focus = static_cast<int>(headers->size()) - 1;
             }
             *status_text = (*headers)[*header_focus].value;
+            viewer->set_scroll(0.0f);
         });
 
     auto viewer_comp = viewer->component();
@@ -135,31 +138,8 @@ ftxui::Component make_newsletter_screen(
                 }
                 return true;
             }
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
-            // Scroll when viewer is not active (header browsing)
-            if (!viewer->active()) {
-                constexpr float kStep = 0.05f;
-                auto adjust = [&](float delta) {
-                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
-                    viewer->set_scroll(s);
-                    return true;
-                };
-                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
-                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
-                if (ev == ftxui::Event::PageDown) return adjust(0.3f);
-                if (ev == ftxui::Event::PageUp) return adjust(-0.3f);
-                if (ev == ftxui::Event::Home)
-                    return adjust(-viewer->scroll());
-                if (ev == ftxui::Event::End)
-                    return adjust(1.0f - viewer->scroll());
-            }
+            if (demo::handle_theme_cycling(theme_index, 3, ev)) return true;
+            if (demo::handle_inactive_scroll(*viewer, ev)) return true;
             return false;
         });
 
@@ -188,6 +168,15 @@ ftxui::Component make_newsletter_screen(
                 }
             }
 
+            auto combined = ftxui::vbox({
+                ftxui::vbox(std::move(header_rows)),
+                ftxui::separator(),
+                viewer_comp->Render(),
+            });
+            combined = combined | ftxui::vscroll_indicator;
+            combined = markdown::direct_scroll(
+                std::move(combined), viewer->scroll(), scroll_info.get());
+
             return ftxui::vbox({
                 ftxui::hbox({
                     ftxui::text("  Theme: ") | ftxui::dim,
@@ -197,11 +186,7 @@ ftxui::Component make_newsletter_screen(
                         + std::to_string(snippets->current + 1) + "/"
                         + std::to_string(snippets->count()) + ")  ") | ftxui::dim,
                 }),
-                ftxui::vbox({
-                    ftxui::vbox(std::move(header_rows)),
-                    ftxui::separator(),
-                    viewer_comp->Render(),
-                }) | ftxui::border | ftxui::flex,
+                combined | ftxui::border | ftxui::flex,
                 ftxui::hbox({
                     status_text->empty()
                         ? ftxui::text("")

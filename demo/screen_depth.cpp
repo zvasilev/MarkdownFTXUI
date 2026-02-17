@@ -64,15 +64,7 @@ ftxui::Component make_depth_screen(
                 viewer->set_active(true);
                 return false;
             }
-            // Theme cycling
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
+            if (demo::handle_theme_cycling(theme_index, 3, ev)) return true;
             // +/- to adjust max_quote_depth
             if (ev == ftxui::Event::Character('+') ||
                 ev == ftxui::Event::Character('=')) {
@@ -85,22 +77,7 @@ ftxui::Component make_depth_screen(
                     std::max(1, viewer->max_quote_depth() - 1));
                 return true;
             }
-            // Scroll when inactive (wheel + active handled by ViewerWrap)
-            if (!viewer->active()) {
-                constexpr float kStep = 0.03f;
-                constexpr float kPageStep = 0.3f;
-                auto adjust = [&](float delta) {
-                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
-                    viewer->set_scroll(s);
-                    return true;
-                };
-                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
-                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
-                if (ev == ftxui::Event::PageDown) return adjust(kPageStep);
-                if (ev == ftxui::Event::PageUp) return adjust(-kPageStep);
-                if (ev == ftxui::Event::Home) return adjust(-viewer->scroll());
-                if (ev == ftxui::Event::End) return adjust(1.0f - viewer->scroll());
-            }
+            if (demo::handle_inactive_scroll(*viewer, ev, 0.03f)) return true;
             return false;
         });
 

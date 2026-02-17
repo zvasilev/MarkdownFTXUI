@@ -132,3 +132,19 @@ add_test(NAME test_mega_paragraph COMMAND test_mega_paragraph)
 add_executable(test_tab_exit test_tab_exit.cpp)
 target_link_libraries(test_tab_exit PRIVATE markdown-ui)
 add_test(NAME test_tab_exit COMMAND test_tab_exit)
+
+add_executable(test_image test_image.cpp)
+target_link_libraries(test_image PRIVATE markdown-ui)
+add_test(NAME test_image COMMAND test_image)
+
+add_executable(test_thematic_break test_thematic_break.cpp)
+target_link_libraries(test_thematic_break PRIVATE markdown-ui)
+add_test(NAME test_thematic_break COMMAND test_thematic_break)
+
+add_executable(test_hard_break test_hard_break.cpp)
+target_link_libraries(test_hard_break PRIVATE markdown-ui)
+add_test(NAME test_hard_break COMMAND test_hard_break)
+
+add_executable(test_mouse_click test_mouse_click.cpp)
+target_link_libraries(test_mouse_click PRIVATE markdown-ui)
+add_test(NAME test_mouse_click COMMAND test_mouse_click)

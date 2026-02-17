@@ -3,6 +3,7 @@
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
+#include <ftxui/component/mouse.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
@@ -47,8 +48,20 @@ int main() {
         return el;
     };
     auto menu_comp = ftxui::Menu(&menu_entries, &menu_selected, menu_option);
+    // Mouse click on a menu entry: Pressed updates menu_selected (handled by
+    // Menu), Released navigates to the selected screen.
+    auto menu_clickable = ftxui::CatchEvent(menu_comp,
+        [&](ftxui::Event event) {
+            if (event.is_mouse() &&
+                event.mouse().button == ftxui::Mouse::Left &&
+                event.mouse().motion == ftxui::Mouse::Released) {
+                current_screen = menu_selected + 1;
+                return true;
+            }
+            return false;
+        });
     auto menu_container = ftxui::Container::Vertical({
-        theme_toggle, menu_comp});
+        theme_toggle, menu_clickable});
 
     auto menu_screen = ftxui::Renderer(menu_container, [&] {
         return ftxui::vbox({

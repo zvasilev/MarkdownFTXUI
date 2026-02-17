@@ -90,31 +90,8 @@ ftxui::Component make_viewer_screen(
                 viewer->set_active(true);
                 return false;
             }
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
-            // When inactive, arrow/page keys scroll via viewer API.
-            // Wheel and active-mode scroll are handled by ViewerWrap.
-            if (!viewer->active()) {
-                constexpr float kStep = 0.05f;
-                constexpr float kPageStep = 0.3f;
-                auto adjust = [&](float delta) {
-                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
-                    viewer->set_scroll(s);
-                    return true;
-                };
-                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
-                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
-                if (ev == ftxui::Event::PageDown) return adjust(kPageStep);
-                if (ev == ftxui::Event::PageUp) return adjust(-kPageStep);
-                if (ev == ftxui::Event::Home) return adjust(-viewer->scroll());
-                if (ev == ftxui::Event::End) return adjust(1.0f - viewer->scroll());
-            }
+            if (demo::handle_theme_cycling(theme_index, 3, ev)) return true;
+            if (demo::handle_inactive_scroll(*viewer, ev)) return true;
             return false;
         });
 

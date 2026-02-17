@@ -1,7 +1,6 @@
 #include "screens.hpp"
 #include "common.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -130,31 +129,8 @@ ftxui::Component make_email_screen(
                 }
                 return true;
             }
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
-            // Scroll when viewer is not active (header browsing)
-            if (!viewer->active()) {
-                constexpr float kStep = 0.05f;
-                auto adjust = [&](float delta) {
-                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
-                    viewer->set_scroll(s);
-                    return true;
-                };
-                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
-                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
-                if (ev == ftxui::Event::PageDown) return adjust(0.3f);
-                if (ev == ftxui::Event::PageUp) return adjust(-0.3f);
-                if (ev == ftxui::Event::Home)
-                    return adjust(-viewer->scroll());
-                if (ev == ftxui::Event::End)
-                    return adjust(1.0f - viewer->scroll());
-            }
+            if (demo::handle_theme_cycling(theme_index, 3, ev)) return true;
+            if (demo::handle_inactive_scroll(*viewer, ev)) return true;
             return false;
         });
 
