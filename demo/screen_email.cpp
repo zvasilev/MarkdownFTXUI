@@ -2,6 +2,8 @@
 #include "common.hpp"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include <ftxui/component/event.hpp>
 
@@ -46,6 +48,11 @@ const std::string email_body =
     "Thanks,\n\n"
     "**Alice** | Engineering Lead\n";
 
+struct HeaderField {
+    std::string label;
+    std::string value;
+};
+
 } // namespace
 
 ftxui::Component make_email_screen(
@@ -57,12 +64,16 @@ ftxui::Component make_email_screen(
     viewer->set_content(email_body);
     viewer->set_embed(true);  // caller handles framing for combined scroll
 
-    // Register external focusable items (headers in the Tab ring)
-    viewer->add_focusable("From", "Alice <alice@example.com>");
-    viewer->add_focusable("To", "team@example.com");
-    viewer->add_focusable("Subject", "Sprint Review Notes - Week 42");
-    viewer->add_focusable("Date", "Fri, 7 Feb 2026 15:30:00 +0200");
+    auto headers = std::make_shared<std::vector<HeaderField>>(
+        std::vector<HeaderField>{
+            {"From", "Alice <alice@example.com>"},
+            {"To", "team@example.com"},
+            {"Subject", "Sprint Review Notes - Week 42"},
+            {"Date", "Fri, 7 Feb 2026 15:30:00 +0200"},
+        });
+    int num_headers = static_cast<int>(headers->size());
 
+    auto header_focus = std::make_shared<int>(-1);
     auto status_text = std::make_shared<std::string>();
 
     viewer->on_link_click(
@@ -70,20 +81,71 @@ ftxui::Component make_email_screen(
             *status_text = value;
         });
 
+    viewer->on_tab_exit(
+        [header_focus, headers, status_text](int direction) {
+            if (direction > 0) {
+                *header_focus = 0;
+            } else {
+                *header_focus = static_cast<int>(headers->size()) - 1;
+            }
+            *status_text = (*headers)[*header_focus].value;
+        });
+
     auto viewer_comp = viewer->component();
 
-    auto screen = ftxui::Renderer(viewer_comp,
+    auto with_keys = ftxui::CatchEvent(viewer_comp,
+        [=, &theme_index](ftxui::Event ev) {
+            if (ev == ftxui::Event::Tab || ev == ftxui::Event::TabReverse) {
+                if (viewer->active()) {
+                    return false;  // let viewer handle link cycling
+                }
+                int dir = (ev == ftxui::Event::Tab) ? 1 : -1;
+                if (*header_focus < 0) {
+                    *header_focus = (dir > 0) ? 0 : num_headers - 1;
+                } else {
+                    int next = *header_focus + dir;
+                    if (next >= num_headers) {
+                        *header_focus = -1;
+                        if (!viewer->enter_focus(+1)) {
+                            *header_focus = 0;  // no links, wrap
+                        }
+                    } else if (next < 0) {
+                        *header_focus = -1;
+                        if (!viewer->enter_focus(-1)) {
+                            *header_focus = num_headers - 1;
+                        }
+                    } else {
+                        *header_focus = next;
+                    }
+                }
+                if (*header_focus >= 0) {
+                    *status_text = (*headers)[*header_focus].value;
+                    viewer->set_scroll(0.0f);
+                }
+                return true;
+            }
+            if (ev == ftxui::Event::ArrowLeft) {
+                theme_index = (theme_index + 2) % 3;
+                return true;
+            }
+            if (ev == ftxui::Event::ArrowRight) {
+                theme_index = (theme_index + 1) % 3;
+                return true;
+            }
+            return false;
+        });
+
+    auto screen = ftxui::Renderer(with_keys,
         [=, &theme_index, &theme_names] {
             viewer->set_theme(demo::get_theme(theme_index));
 
-            auto const& ext = viewer->externals();
             ftxui::Elements header_rows;
-            for (int i = 0; i < static_cast<int>(ext.size()); ++i) {
+            for (int i = 0; i < num_headers; ++i) {
                 auto content = ftxui::hbox({
-                    ftxui::text(ext[i].label + ": ") | ftxui::bold,
-                    ftxui::text(ext[i].value),
+                    ftxui::text((*headers)[i].label + ": ") | ftxui::bold,
+                    ftxui::text((*headers)[i].value),
                 });
-                if (viewer->is_external_focused(i)) {
+                if (*header_focus == i) {
                     header_rows.push_back(ftxui::hbox({
                         ftxui::text("["),
                         content,
@@ -101,14 +163,12 @@ ftxui::Component make_email_screen(
             header_rows.push_back(viewer_comp->Render());
 
             // Wrap headers + body in a single scrollable frame.
-            // Use direct_scroll (not yframe) for linear scroll offset.
             auto combined = ftxui::vbox(std::move(header_rows))
                 | ftxui::vscroll_indicator;
             if (!viewer->is_link_focused()) {
                 combined = markdown::direct_scroll(std::move(combined),
                                                viewer->scroll());
             } else {
-                // Link focused: yframe scrolls to the ftxui::focus element
                 combined = combined | ftxui::yframe;
             }
             combined = combined | ftxui::flex;
@@ -133,18 +193,10 @@ ftxui::Component make_email_screen(
             });
         });
 
-    // Theme cycling + Esc → menu
     return ftxui::CatchEvent(screen,
-        [=, &current_screen, &theme_index](ftxui::Event ev) {
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
+        [=, &current_screen](ftxui::Event ev) {
             if (ev == ftxui::Event::Escape) {
+                if (viewer->active()) return false;
                 current_screen = 0;
                 return true;
             }

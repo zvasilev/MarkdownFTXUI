@@ -175,18 +175,34 @@ int main() {
         ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
     }
 
-    // Test 14: Tab ring mode — PageUp/PageDown + Home/End work with externals
+    // Test 14: Scroll keys work when activated via enter_focus
     {
-        ViewerFixture f;
-        f.viewer.add_focusable("Reply", "reply");
-        ftxui::Render(f.screen, f.comp->Render());
-        float step = f.page_step();
-        f.comp->OnEvent(ftxui::Event::PageDown);
-        ASSERT_TRUE(approx(f.viewer.scroll(), step));
-        f.comp->OnEvent(ftxui::Event::End);
-        ASSERT_TRUE(approx(f.viewer.scroll(), 1.0f));
-        f.comp->OnEvent(ftxui::Event::Home);
-        ASSERT_TRUE(approx(f.viewer.scroll(), 0.0f));
+        // Build a viewer with a link + long content so scroll_info is valid
+        Viewer viewer(make_cmark_parser());
+        std::string content = "[link](https://a.com)\n\n";
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        viewer.set_content(content);
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(10));
+        ftxui::Render(screen, comp->Render());
+
+        // scroll_info populated from direct_scroll during first render
+        auto const& si = viewer.scroll_info();
+        ASSERT_TRUE(si.viewport_height > 0);
+        ASSERT_TRUE(si.content_height > si.viewport_height);
+        float step = static_cast<float>(si.viewport_height)
+                   / static_cast<float>(si.content_height);
+
+        ASSERT_TRUE(viewer.enter_focus(+1));
+        ASSERT_TRUE(viewer.active());
+        comp->OnEvent(ftxui::Event::PageDown);
+        ASSERT_TRUE(approx(viewer.scroll(), step));
+        comp->OnEvent(ftxui::Event::End);
+        ASSERT_TRUE(approx(viewer.scroll(), 1.0f));
+        comp->OnEvent(ftxui::Event::Home);
+        ASSERT_TRUE(approx(viewer.scroll(), 0.0f));
     }
 
     return 0;

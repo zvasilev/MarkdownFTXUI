@@ -54,6 +54,11 @@ struct SnippetList {
     void prev() { if (!files.empty()) current = (current + count() - 1) % count(); }
 };
 
+struct HeaderField {
+    std::string label;
+    std::string value;
+};
+
 } // namespace
 
 ftxui::Component make_newsletter_screen(
@@ -70,11 +75,16 @@ ftxui::Component make_newsletter_screen(
     viewer->set_content(snippets->read_current());
     viewer->set_embed(true);
 
-    viewer->add_focusable("From", "Apple Developer <developer@insideapple.apple.com>");
-    viewer->add_focusable("To", "you@example.com");
-    viewer->add_focusable("Subject", "Meet with Apple this fall and winter");
-    viewer->add_focusable("Date", "Mon, 10 Nov 2025 09:00:00 -0800");
+    auto headers = std::make_shared<std::vector<HeaderField>>(
+        std::vector<HeaderField>{
+            {"From", "Apple Developer <developer@insideapple.apple.com>"},
+            {"To", "you@example.com"},
+            {"Subject", "Meet with Apple this fall and winter"},
+            {"Date", "Mon, 10 Nov 2025 09:00:00 -0800"},
+        });
+    int num_headers = static_cast<int>(headers->size());
 
+    auto header_focus = std::make_shared<int>(-1);
     auto status_text = std::make_shared<std::string>();
 
     viewer->on_link_click(
@@ -82,20 +92,71 @@ ftxui::Component make_newsletter_screen(
             *status_text = value;
         });
 
+    viewer->on_tab_exit(
+        [header_focus, headers, status_text](int direction) {
+            if (direction > 0) {
+                *header_focus = 0;
+            } else {
+                *header_focus = static_cast<int>(headers->size()) - 1;
+            }
+            *status_text = (*headers)[*header_focus].value;
+        });
+
     auto viewer_comp = viewer->component();
 
-    auto screen = ftxui::Renderer(viewer_comp,
+    auto with_keys = ftxui::CatchEvent(viewer_comp,
+        [=, &theme_index](ftxui::Event ev) {
+            if (ev == ftxui::Event::Tab || ev == ftxui::Event::TabReverse) {
+                if (viewer->active()) {
+                    return false;  // let viewer handle link cycling
+                }
+                int dir = (ev == ftxui::Event::Tab) ? 1 : -1;
+                if (*header_focus < 0) {
+                    *header_focus = (dir > 0) ? 0 : num_headers - 1;
+                } else {
+                    int next = *header_focus + dir;
+                    if (next >= num_headers) {
+                        *header_focus = -1;
+                        if (!viewer->enter_focus(+1)) {
+                            *header_focus = 0;
+                        }
+                    } else if (next < 0) {
+                        *header_focus = -1;
+                        if (!viewer->enter_focus(-1)) {
+                            *header_focus = num_headers - 1;
+                        }
+                    } else {
+                        *header_focus = next;
+                    }
+                }
+                if (*header_focus >= 0) {
+                    *status_text = (*headers)[*header_focus].value;
+                    viewer->set_scroll(0.0f);
+                }
+                return true;
+            }
+            if (ev == ftxui::Event::ArrowLeft) {
+                theme_index = (theme_index + 2) % 3;
+                return true;
+            }
+            if (ev == ftxui::Event::ArrowRight) {
+                theme_index = (theme_index + 1) % 3;
+                return true;
+            }
+            return false;
+        });
+
+    auto screen = ftxui::Renderer(with_keys,
         [=, &theme_index, &theme_names] {
             viewer->set_theme(demo::get_theme(theme_index));
 
-            auto const& ext = viewer->externals();
             ftxui::Elements header_rows;
-            for (int i = 0; i < static_cast<int>(ext.size()); ++i) {
+            for (int i = 0; i < num_headers; ++i) {
                 auto content = ftxui::hbox({
-                    ftxui::text(ext[i].label + ": ") | ftxui::bold,
-                    ftxui::text(ext[i].value),
+                    ftxui::text((*headers)[i].label + ": ") | ftxui::bold,
+                    ftxui::text((*headers)[i].value),
                 });
-                if (viewer->is_external_focused(i)) {
+                if (*header_focus == i) {
                     header_rows.push_back(ftxui::hbox({
                         ftxui::text("["),
                         content,
@@ -146,16 +207,9 @@ ftxui::Component make_newsletter_screen(
         });
 
     return ftxui::CatchEvent(screen,
-        [=, &current_screen, &theme_index](ftxui::Event ev) {
-            if (ev == ftxui::Event::ArrowLeft) {
-                theme_index = (theme_index + 2) % 3;
-                return true;
-            }
-            if (ev == ftxui::Event::ArrowRight) {
-                theme_index = (theme_index + 1) % 3;
-                return true;
-            }
+        [=, &current_screen](ftxui::Event ev) {
             if (ev == ftxui::Event::Escape) {
+                if (viewer->active()) return false;
                 current_screen = 0;
                 return true;
             }

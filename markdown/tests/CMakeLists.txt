@@ -82,9 +82,6 @@ add_executable(test_dom_focus test_dom_focus.cpp)
 target_link_libraries(test_dom_focus PRIVATE markdown-ui)
 add_test(NAME test_dom_focus COMMAND test_dom_focus)
 
-add_executable(test_external_focusable test_external_focusable.cpp)
-target_link_libraries(test_external_focusable PRIVATE markdown-ui)
-add_test(NAME test_external_focusable COMMAND test_external_focusable)
 
 add_executable(test_scroll_frame test_scroll_frame.cpp)
 target_link_libraries(test_scroll_frame PRIVATE markdown-ui)
@@ -131,3 +128,7 @@ add_test(NAME test_perf_scroll COMMAND test_perf_scroll)
 add_executable(test_mega_paragraph test_mega_paragraph.cpp)
 target_link_libraries(test_mega_paragraph PRIVATE markdown-ui)
 add_test(NAME test_mega_paragraph COMMAND test_mega_paragraph)
+
+add_executable(test_tab_exit test_tab_exit.cpp)
+target_link_libraries(test_tab_exit PRIVATE markdown-ui)
+add_test(NAME test_tab_exit COMMAND test_tab_exit)

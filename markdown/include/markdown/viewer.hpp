@@ -16,11 +16,6 @@ namespace markdown {
 
 enum class LinkEvent { Focus, Press };
 
-struct ExternalFocusable {
-    std::string label;
-    std::string value;
-};
-
 class Viewer {
 public:
     explicit Viewer(std::unique_ptr<MarkdownParser> parser);
@@ -32,6 +27,8 @@ public:
     void show_scrollbar(bool show);
     void on_link_click(
         std::function<void(std::string const&, LinkEvent)> callback);
+    void on_tab_exit(std::function<void(int direction)> callback);
+    bool enter_focus(int direction);
     void set_theme(Theme const& theme) {
         if (_theme.name != theme.name) { _theme = theme; ++_theme_gen; }
     }
@@ -49,17 +46,8 @@ public:
     bool active() const { return _active; }
     void set_active(bool a) { _active = a; }
 
-    // External focusable items (appear before links in Tab ring).
-    // When externals are registered, Tab always cycles without Enter gate.
-    void add_focusable(std::string label, std::string value);
-    void clear_focusables();
-    std::vector<ExternalFocusable> const& externals() const {
-        return _externals;
-    }
-
-    // Unified focus index: -1=none, 0..N-1=external, N..N+M-1=links.
+    // Focus index into link_targets: -1=none, 0..N-1=links.
     int focused_index() const { return _focus_index; }
-    bool is_external_focused(int external_index) const;
     std::string focused_value() const;
 
     // Embed mode: skip internal yframe/vscroll/flex so the caller can
@@ -94,8 +82,8 @@ private:
     uint64_t _builder_gen = 0;
     uint64_t _built_builder_gen = 0;
     std::function<void(std::string const&, LinkEvent)> _link_callback;
+    std::function<void(int direction)> _tab_exit_callback;
     ftxui::Component _component;
-    std::vector<ExternalFocusable> _externals;
     bool _embed = false;
 };
 
