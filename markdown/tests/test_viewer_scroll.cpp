@@ -205,5 +205,92 @@ int main() {
         ASSERT_TRUE(approx(viewer.scroll(), 0.0f));
     }
 
+    // Test 15: Arrow scroll works after enter_focus with re-renders
+    {
+        Viewer viewer(make_cmark_parser());
+        std::string content = "[link1](https://a.com)\n\n";
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        content += "[link2](https://b.com)\n";
+        viewer.set_content(content);
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(10));
+        ftxui::Render(screen, comp->Render());
+
+        // Focus first link
+        ASSERT_TRUE(viewer.enter_focus(+1));
+        ASSERT_TRUE(viewer.active());
+        ASSERT_TRUE(approx(viewer.scroll(), 0.0f));
+
+        // Re-render (auto-scroll may run), then ArrowDown
+        ftxui::Render(screen, comp->Render());
+        comp->OnEvent(ftxui::Event::ArrowDown);
+        float after_first = viewer.scroll();
+        ASSERT_TRUE(after_first > 0.0f);
+
+        // Re-render, then another ArrowDown — scroll should increase
+        ftxui::Render(screen, comp->Render());
+        comp->OnEvent(ftxui::Event::ArrowDown);
+        float after_second = viewer.scroll();
+        ASSERT_TRUE(after_second > after_first);
+    }
+
+    // Test 16: ArrowUp scrolls back after ArrowDown with link focused
+    {
+        Viewer viewer(make_cmark_parser());
+        std::string content = "[link](https://a.com)\n\n";
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        viewer.set_content(content);
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(10));
+        ftxui::Render(screen, comp->Render());
+
+        viewer.enter_focus(+1);
+        ftxui::Render(screen, comp->Render());
+
+        // Scroll down a few times
+        comp->OnEvent(ftxui::Event::ArrowDown);
+        comp->OnEvent(ftxui::Event::ArrowDown);
+        comp->OnEvent(ftxui::Event::ArrowDown);
+        float scrolled = viewer.scroll();
+        ASSERT_TRUE(scrolled > 0.0f);
+
+        // Scroll back up
+        comp->OnEvent(ftxui::Event::ArrowUp);
+        ASSERT_TRUE(viewer.scroll() < scrolled);
+    }
+
+    // Test 17: Tab to off-screen link auto-scrolls
+    {
+        Viewer viewer(make_cmark_parser());
+        std::string content = "[link1](https://a.com)\n\n";
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        content += "[link2](https://b.com)\n";
+        viewer.set_content(content);
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(10));
+        ftxui::Render(screen, comp->Render());
+
+        // Enter focus on link1 (at top, no scroll needed)
+        ASSERT_TRUE(viewer.enter_focus(+1));
+        ASSERT_EQ(viewer.focused_index(), 0);
+        ASSERT_TRUE(approx(viewer.scroll(), 0.0f));
+
+        // Render with link1 focused so boxes are fresh
+        ftxui::Render(screen, comp->Render());
+
+        // Tab to link2 (at bottom, off-screen)
+        comp->OnEvent(ftxui::Event::Tab);
+        ASSERT_EQ(viewer.focused_index(), 1);
+
+        // scroll_to_focus should have moved scroll to show link2
+        ASSERT_TRUE(viewer.scroll() > 0.5f);
+    }
+
     return 0;
 }

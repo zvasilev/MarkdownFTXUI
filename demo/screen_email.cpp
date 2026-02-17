@@ -63,7 +63,7 @@ ftxui::Component make_email_screen(
     auto viewer = std::make_shared<markdown::Viewer>(
         markdown::make_cmark_parser());
     viewer->set_content(email_body);
-    viewer->set_embed(true);  // caller handles framing for combined scroll
+    viewer->show_scrollbar(true);
 
     auto headers = std::make_shared<std::vector<HeaderField>>(
         std::vector<HeaderField>{
@@ -177,19 +177,6 @@ ftxui::Component make_email_screen(
                     }));
                 }
             }
-            header_rows.push_back(ftxui::separator());
-            header_rows.push_back(viewer_comp->Render());
-
-            // Wrap headers + body in a single scrollable frame.
-            auto combined = ftxui::vbox(std::move(header_rows))
-                | ftxui::vscroll_indicator;
-            if (!viewer->is_link_focused()) {
-                combined = markdown::direct_scroll(std::move(combined),
-                                               viewer->scroll());
-            } else {
-                combined = combined | ftxui::yframe;
-            }
-            combined = combined | ftxui::flex;
 
             return ftxui::vbox({
                 ftxui::hbox({
@@ -197,7 +184,11 @@ ftxui::Component make_email_screen(
                     ftxui::text(theme_names[theme_index]) | ftxui::bold,
                     ftxui::filler(),
                 }),
-                combined | ftxui::border,
+                ftxui::vbox({
+                    ftxui::vbox(std::move(header_rows)),
+                    ftxui::separator(),
+                    viewer_comp->Render(),
+                }) | ftxui::border | ftxui::flex,
                 ftxui::hbox({
                     status_text->empty()
                         ? ftxui::text("")

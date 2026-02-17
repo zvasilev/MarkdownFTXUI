@@ -14,6 +14,7 @@ namespace markdown {
 struct ScrollInfo {
     int viewport_height = 0;
     int content_height = 0;
+    int viewport_y_min = 0;
 };
 
 // Direct-offset vertical scroll frame. Unlike yframe (which centers the
@@ -37,6 +38,7 @@ public:
         if (info_) {
             info_->viewport_height = external;
             info_->content_height = internal;
+            info_->viewport_y_min = box.y_min;
         }
         int scrollable = std::max(0, internal - external - 1);
         int dy = static_cast<int>(ratio_ * static_cast<float>(scrollable));

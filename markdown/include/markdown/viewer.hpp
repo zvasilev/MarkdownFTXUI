@@ -71,6 +71,11 @@ public:
     bool scrollbar_visible() const { return _show_scrollbar; }
     Theme const& theme() const { return _theme; }
     bool is_link_focused() const;
+    ftxui::Box focused_link_box() const;
+
+    /// Adjust _scroll_ratio so _focus_index link is visible.
+    /// Call during event handling when link boxes are fresh from layout.
+    void scroll_to_focus();
 
 private:
     std::unique_ptr<MarkdownParser> _parser;

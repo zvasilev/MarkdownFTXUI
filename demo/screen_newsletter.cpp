@@ -73,7 +73,7 @@ ftxui::Component make_newsletter_screen(
     auto viewer = std::make_shared<markdown::Viewer>(
         markdown::make_cmark_parser());
     viewer->set_content(snippets->read_current());
-    viewer->set_embed(true);
+    viewer->show_scrollbar(true);
 
     auto headers = std::make_shared<std::vector<HeaderField>>(
         std::vector<HeaderField>{
@@ -187,18 +187,6 @@ ftxui::Component make_newsletter_screen(
                     }));
                 }
             }
-            header_rows.push_back(ftxui::separator());
-            header_rows.push_back(viewer_comp->Render());
-
-            auto combined = ftxui::vbox(std::move(header_rows))
-                | ftxui::vscroll_indicator;
-            if (!viewer->is_link_focused()) {
-                combined = markdown::direct_scroll(std::move(combined),
-                                               viewer->scroll());
-            } else {
-                combined = combined | ftxui::yframe;
-            }
-            combined = combined | ftxui::flex;
 
             return ftxui::vbox({
                 ftxui::hbox({
@@ -209,7 +197,11 @@ ftxui::Component make_newsletter_screen(
                         + std::to_string(snippets->current + 1) + "/"
                         + std::to_string(snippets->count()) + ")  ") | ftxui::dim,
                 }),
-                combined | ftxui::border,
+                ftxui::vbox({
+                    ftxui::vbox(std::move(header_rows)),
+                    ftxui::separator(),
+                    viewer_comp->Render(),
+                }) | ftxui::border | ftxui::flex,
                 ftxui::hbox({
                     status_text->empty()
                         ? ftxui::text("")

@@ -41,6 +41,7 @@ bool Viewer::enter_focus(int direction) {
     if (total == 0) return false;
     _active = true;
     _focus_index = (direction > 0) ? 0 : total - 1;
+    scroll_to_focus();
     if (_link_callback) {
         _link_callback(focused_value(), LinkEvent::Focus);
     }
@@ -57,6 +58,37 @@ std::string Viewer::focused_value() const {
 
 bool Viewer::is_link_focused() const {
     return _focus_index >= 0;
+}
+
+ftxui::Box Viewer::focused_link_box() const {
+    auto const& targets = _builder.link_targets();
+    if (_focus_index < 0 || _focus_index >= static_cast<int>(targets.size()))
+        return {};
+    auto const& boxes = targets[_focus_index].boxes;
+    if (boxes.empty()) return {};
+    return boxes[0];
+}
+
+void Viewer::scroll_to_focus() {
+    if (_focus_index < 0 || _scroll_info.viewport_height <= 0) return;
+    auto const& targets = _builder.link_targets();
+    if (_focus_index >= static_cast<int>(targets.size())) return;
+    auto const& boxes = targets[_focus_index].boxes;
+    if (boxes.empty()) return;
+    auto const& lb = boxes[0];
+    int scrollable = _scroll_info.content_height - _scroll_info.viewport_height;
+    if (scrollable <= 0) return;
+    int vp_top = _scroll_info.viewport_y_min;
+    int vp_bot = vp_top + _scroll_info.viewport_height;
+    // If y_max < y_min, the box was clipped by layout (off-screen element)
+    if (lb.y_max >= lb.y_min &&
+        lb.y_min >= vp_top && lb.y_max <= vp_bot) return; // already visible
+    int dy = static_cast<int>(_scroll_ratio * scrollable);
+    int content_y = lb.y_min - vp_top + dy;
+    int target = content_y - _scroll_info.viewport_height / 3;
+    _scroll_ratio = std::clamp(
+        static_cast<float>(target) / static_cast<float>(scrollable),
+        0.0f, 1.0f);
 }
 
 namespace {
@@ -76,19 +108,22 @@ class ViewerWrap : public ftxui::ComponentBase {
     std::function<void(int)>& _tab_exit_callback;
     ViewerKeys const& _keys;
     ScrollInfo const& _scroll_info;
+    std::function<void()> _scroll_to_focus;
 public:
     ViewerWrap(ftxui::Component child, bool& active, float& scroll,
                int& focus_index, DomBuilder& builder,
                std::function<void(std::string const&, LinkEvent)>& link_cb,
                std::function<void(int)>& tab_exit_cb,
                ViewerKeys const& keys,
-               ScrollInfo const& scroll_info)
+               ScrollInfo const& scroll_info,
+               std::function<void()> scroll_to_focus)
         : _active(active), _scroll_ratio(scroll),
           _focus_index(focus_index), _builder(builder),
           _link_callback(link_cb),
           _tab_exit_callback(tab_exit_cb),
           _keys(keys),
-          _scroll_info(scroll_info) {
+          _scroll_info(scroll_info),
+          _scroll_to_focus(std::move(scroll_to_focus)) {
         Add(std::move(child));
     }
 
@@ -190,6 +225,7 @@ private:
             }
             _focus_index = (next + total) % total;
         }
+        _scroll_to_focus();
         notify_focus(LinkEvent::Focus);
     }
 
@@ -239,13 +275,7 @@ ftxui::Component Viewer::component() {
         if (_embed) return el;
 
         if (_show_scrollbar) el = el | ftxui::vscroll_indicator;
-        // When a link is focused, yframe scrolls to the ftxui::focus
-        // element. Otherwise use direct_scroll for linear offset.
-        if (_focused_link < 0) {
-            el = direct_scroll(std::move(el), _scroll_ratio, &_scroll_info);
-        } else {
-            el = el | ftxui::yframe;
-        }
+        el = direct_scroll(std::move(el), _scroll_ratio, &_scroll_info);
         return el | ftxui::flex;
     });
 
@@ -282,7 +312,8 @@ ftxui::Component Viewer::component() {
     _component = std::make_shared<ViewerWrap>(
         inner, _active, _scroll_ratio, _focus_index,
         _builder, _link_callback, _tab_exit_callback,
-        _keys, _scroll_info);
+        _keys, _scroll_info,
+        [this] { scroll_to_focus(); });
     return _component;
 }
 

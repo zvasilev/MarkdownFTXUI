@@ -136,6 +136,7 @@ A full-window Markdown viewer with a scrollbar, link navigation, and theme cycli
 - **Mouse wheel**: Scrolls content by 5% per tick
 - **Theme cycling**: Left/Right arrows switch between the three themes
 - **Auto-activation**: Tab automatically activates the viewer for link navigation
+- **Auto-scroll to links**: When Tab focuses a link that is off-screen, the viewer automatically scrolls to show it
 
 ### Key Code Pattern
 
@@ -168,18 +169,18 @@ viewer->on_link_click(
 
 ## Screen 3: Email Viewer
 
-A simulated email view combining header fields and a Markdown body in a single scrollable frame.
+A simulated email view with fixed header fields and a scrollable Markdown body below.
 
 ```
   Theme: Default
  ┌──────────────────────────────────────────────┐
- │[From: Alice <alice@example.com>]             ▓│
- │ To: team@example.com                         ▓│
- │ Subject: Sprint Review Notes - Week 42       ░│
- │ Date: Fri, 7 Feb 2026 15:30:00 +0200        ░│
- │──────────────────────────────────────────────░│
- │ Sprint Review Notes                          ░│
- │ ════════════════════                         ░│
+ │[From: Alice <alice@example.com>]              │
+ │ To: team@example.com                          │
+ │ Subject: Sprint Review Notes - Week 42        │
+ │ Date: Fri, 7 Feb 2026 15:30:00 +0200         │
+ │────────────────────────────────────────────── │
+ │ Sprint Review Notes                          ▓│
+ │ ════════════════════                         ▓│
  │                                              ░│
  │ Hi team, here are the notes from today's     ░│
  │ sprint review. Please review and add any     ░│
@@ -193,8 +194,8 @@ A simulated email view combining header fields and a Markdown body in a single s
 - **Parent-managed header focus**: Four header fields (From, To, Subject, Date) are managed by the parent component. The parent tracks which header is focused and renders brackets accordingly.
 - **Tab integration**: The parent uses `on_tab_exit`/`enter_focus` to cycle Tab between headers and viewer links. Tab flows: headers → links → back to headers.
 - **Bracket highlighting**: The currently focused header is wrapped in `[brackets]`, others have padding spaces for alignment.
-- **Embed mode**: The viewer operates in embed mode (`set_embed(true)`), meaning it does not create its own scroll frame. Instead, headers and body are combined in a single `vbox` wrapped in one `direct_scroll`/`yframe`.
-- **Unified scroll**: A single scrollbar covers both headers and body content.
+- **Fixed headers**: Headers are always visible above the scrollable body (standard email client behavior). The viewer manages its own scroll frame internally.
+- **Auto-scroll to links**: When Tab focuses a link that is off-screen, the viewer automatically adjusts scroll to show it.
 
 ### Key Code Pattern
 
@@ -202,7 +203,7 @@ A simulated email view combining header fields and a Markdown body in a single s
 auto viewer = std::make_shared<markdown::Viewer>(
     markdown::make_cmark_parser());
 viewer->set_content(email_body);
-viewer->set_embed(true);  // Skip internal framing
+viewer->show_scrollbar(true);
 
 int header_focus = -1;  // Parent tracks focused header
 
@@ -222,13 +223,12 @@ if (event == viewer->keys().next && !viewer->active()) {
     }
 }
 
-// Combine headers + viewer body in one scrollable frame
-auto combined = ftxui::vbox({headers..., separator(), viewer_comp->Render()})
-    | ftxui::vscroll_indicator;
-if (!viewer->is_link_focused())
-    combined = markdown::direct_scroll(combined, viewer->scroll());
-else
-    combined = combined | ftxui::yframe;
+// Headers fixed above, viewer manages its own scroll
+auto layout = ftxui::vbox({
+    ftxui::vbox(header_rows),
+    ftxui::separator(),
+    viewer_comp->Render(),  // viewer has its own scroll frame
+}) | ftxui::border | ftxui::flex;
 ```
 
 ### Navigation
