@@ -9,6 +9,7 @@
 #include <ftxui/component/event.hpp>
 
 #include "markdown/parser.hpp"
+#include "markdown/scroll_frame.hpp"
 #include "markdown/viewer.hpp"
 
 namespace {
@@ -63,7 +64,10 @@ ftxui::Component make_email_screen(
     auto viewer = std::make_shared<markdown::Viewer>(
         markdown::make_cmark_parser());
     viewer->set_content(email_body);
-    viewer->show_scrollbar(true);
+    viewer->set_embed(true);
+
+    auto scroll_info = std::make_shared<markdown::ScrollInfo>();
+    viewer->set_external_scroll_info(scroll_info.get());
 
     auto headers = std::make_shared<std::vector<HeaderField>>(
         std::vector<HeaderField>{
@@ -83,13 +87,15 @@ ftxui::Component make_email_screen(
         });
 
     viewer->on_tab_exit(
-        [header_focus, headers, status_text](int direction) {
+        [header_focus, headers, status_text, viewer](int direction) {
             if (direction > 0) {
                 *header_focus = 0;
             } else {
                 *header_focus = static_cast<int>(headers->size()) - 1;
             }
             *status_text = (*headers)[*header_focus].value;
+            // Scroll to top so headers are visible (they scroll with body)
+            viewer->set_scroll(0.0f);
         });
 
     auto viewer_comp = viewer->component();
@@ -121,7 +127,6 @@ ftxui::Component make_email_screen(
                 }
                 if (*header_focus >= 0) {
                     *status_text = (*headers)[*header_focus].value;
-                    viewer->set_scroll(0.0f);
                 }
                 return true;
             }
@@ -178,17 +183,23 @@ ftxui::Component make_email_screen(
                 }
             }
 
+            // Headers + body in a single scroll frame
+            auto combined = ftxui::vbox({
+                ftxui::vbox(std::move(header_rows)),
+                ftxui::separator(),
+                viewer_comp->Render(),
+            });
+            combined = combined | ftxui::vscroll_indicator;
+            combined = markdown::direct_scroll(
+                std::move(combined), viewer->scroll(), scroll_info.get());
+
             return ftxui::vbox({
                 ftxui::hbox({
                     ftxui::text("  Theme: ") | ftxui::dim,
                     ftxui::text(theme_names[theme_index]) | ftxui::bold,
                     ftxui::filler(),
                 }),
-                ftxui::vbox({
-                    ftxui::vbox(std::move(header_rows)),
-                    ftxui::separator(),
-                    viewer_comp->Render(),
-                }) | ftxui::border | ftxui::flex,
+                combined | ftxui::border | ftxui::flex,
                 ftxui::hbox({
                     status_text->empty()
                         ? ftxui::text("")

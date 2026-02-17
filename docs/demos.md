@@ -169,7 +169,7 @@ viewer->on_link_click(
 
 ## Screen 3: Email Viewer
 
-A simulated email view with fixed header fields and a scrollable Markdown body below.
+A simulated email view with header fields and a scrollable Markdown body. Headers and body scroll together in a single frame (embed mode).
 
 ```
   Theme: Default
@@ -194,8 +194,8 @@ A simulated email view with fixed header fields and a scrollable Markdown body b
 - **Parent-managed header focus**: Four header fields (From, To, Subject, Date) are managed by the parent component. The parent tracks which header is focused and renders brackets accordingly.
 - **Tab integration**: The parent uses `on_tab_exit`/`enter_focus` to cycle Tab between headers and viewer links. Tab flows: headers → links → back to headers.
 - **Bracket highlighting**: The currently focused header is wrapped in `[brackets]`, others have padding spaces for alignment.
-- **Fixed headers**: Headers are always visible above the scrollable body (standard email client behavior). The viewer manages its own scroll frame internally.
-- **Auto-scroll to links**: When Tab focuses a link that is off-screen, the viewer automatically adjusts scroll to show it.
+- **Combined scroll**: Headers and body scroll together in a single frame. The viewer runs in embed mode; the parent manages `direct_scroll` and passes a `ScrollInfo*` via `set_external_scroll_info()` so auto-scroll works with live dimensions.
+- **Auto-scroll to links**: When Tab focuses a link that is off-screen, the viewer automatically adjusts scroll to show it. When Tab exits back to headers, scroll resets to top so headers are visible.
 
 ### Key Code Pattern
 
@@ -203,32 +203,26 @@ A simulated email view with fixed header fields and a scrollable Markdown body b
 auto viewer = std::make_shared<markdown::Viewer>(
     markdown::make_cmark_parser());
 viewer->set_content(email_body);
-viewer->show_scrollbar(true);
+viewer->set_embed(true);  // parent manages scroll
 
-int header_focus = -1;  // Parent tracks focused header
+markdown::ScrollInfo scroll_info;
+viewer->set_external_scroll_info(&scroll_info);  // live dimensions
 
 // When viewer Tab-exits, move focus back to headers
 viewer->on_tab_exit([&](int direction) {
     header_focus = (direction > 0) ? 0 : num_headers - 1;
+    viewer->set_scroll(0.0f);  // show headers
 });
 
-// In the parent's event handler (use viewer->keys() for consistency):
-if (event == viewer->keys().next && !viewer->active()) {
-    int next = header_focus + 1;
-    if (next >= num_headers) {
-        header_focus = -1;
-        viewer->enter_focus(+1);  // hand off to viewer
-    } else {
-        header_focus = next;
-    }
-}
-
-// Headers fixed above, viewer manages its own scroll
-auto layout = ftxui::vbox({
+// Headers + body in a single scroll frame
+auto combined = ftxui::vbox({
     ftxui::vbox(header_rows),
     ftxui::separator(),
-    viewer_comp->Render(),  // viewer has its own scroll frame
-}) | ftxui::border | ftxui::flex;
+    viewer_comp->Render(),
+});
+combined = combined | ftxui::vscroll_indicator;
+combined = markdown::direct_scroll(
+    std::move(combined), viewer->scroll(), &scroll_info);
 ```
 
 ### Navigation

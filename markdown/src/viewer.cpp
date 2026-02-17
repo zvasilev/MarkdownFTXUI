@@ -70,22 +70,24 @@ ftxui::Box Viewer::focused_link_box() const {
 }
 
 void Viewer::scroll_to_focus() {
-    if (_focus_index < 0 || _scroll_info.viewport_height <= 0) return;
+    // Use external scroll info (embed mode) or internal (non-embed)
+    auto const& si = _ext_scroll_info ? *_ext_scroll_info : _scroll_info;
+    if (_focus_index < 0 || si.viewport_height <= 0) return;
     auto const& targets = _builder.link_targets();
     if (_focus_index >= static_cast<int>(targets.size())) return;
     auto const& boxes = targets[_focus_index].boxes;
     if (boxes.empty()) return;
     auto const& lb = boxes[0];
-    int scrollable = _scroll_info.content_height - _scroll_info.viewport_height;
+    int scrollable = si.content_height - si.viewport_height;
     if (scrollable <= 0) return;
-    int vp_top = _scroll_info.viewport_y_min;
-    int vp_bot = vp_top + _scroll_info.viewport_height;
+    int vp_top = si.viewport_y_min;
+    int vp_bot = vp_top + si.viewport_height;
     // If y_max < y_min, the box was clipped by layout (off-screen element)
     if (lb.y_max >= lb.y_min &&
         lb.y_min >= vp_top && lb.y_max <= vp_bot) return; // already visible
     int dy = static_cast<int>(_scroll_ratio * scrollable);
     int content_y = lb.y_min - vp_top + dy;
-    int target = content_y - _scroll_info.viewport_height / 3;
+    int target = content_y - si.viewport_height / 3;
     _scroll_ratio = std::clamp(
         static_cast<float>(target) / static_cast<float>(scrollable),
         0.0f, 1.0f);

@@ -292,5 +292,91 @@ int main() {
         ASSERT_TRUE(viewer.scroll() > 0.5f);
     }
 
+    // Test 18: Embed mode — Tab auto-scroll and arrows with external elements
+    {
+        Viewer viewer(make_cmark_parser());
+        std::string content = "[link1](https://a.com)\n\n";
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        content += "[link2](https://b.com)\n";
+        viewer.set_content(content);
+        viewer.set_embed(true);
+
+        ScrollInfo ext_si;
+        viewer.set_external_scroll_info(&ext_si);
+
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(15));
+
+        // Simulate parent: headers + separator above viewer element
+        auto render_combined = [&]() {
+            ftxui::Elements headers;
+            for (int i = 0; i < 5; ++i)
+                headers.push_back(ftxui::text("Header " + std::to_string(i)));
+            auto combined = ftxui::vbox({
+                ftxui::vbox(std::move(headers)),
+                ftxui::separator(),
+                comp->Render(),
+            });
+            return markdown::direct_scroll(
+                std::move(combined), viewer.scroll(), &ext_si);
+        };
+
+        ftxui::Render(screen, render_combined());
+        ASSERT_TRUE(ext_si.viewport_height > 0);
+        ASSERT_TRUE(ext_si.content_height > ext_si.viewport_height);
+
+        // Enter focus, render, tab to off-screen link2
+        ASSERT_TRUE(viewer.enter_focus(+1));
+        ftxui::Render(screen, render_combined());
+        comp->OnEvent(ftxui::Event::Tab);
+        ASSERT_EQ(viewer.focused_index(), 1);
+        ASSERT_TRUE(viewer.scroll() > 0.5f);
+
+        // Arrows work after tab in embed mode
+        ftxui::Render(screen, render_combined());
+        float before = viewer.scroll();
+        comp->OnEvent(ftxui::Event::ArrowUp);
+        ASSERT_TRUE(viewer.scroll() < before);
+    }
+
+    // Test 19: Embed mode — parent set_scroll works
+    {
+        Viewer viewer(make_cmark_parser());
+        std::string content;
+        for (int i = 0; i < 50; ++i)
+            content += "Line " + std::to_string(i) + "\n\n";
+        viewer.set_content(content);
+        viewer.set_embed(true);
+
+        ScrollInfo ext_si;
+        viewer.set_external_scroll_info(&ext_si);
+
+        auto comp = viewer.component();
+        auto screen = ftxui::Screen::Create(ftxui::Dimension::Fixed(60),
+                                            ftxui::Dimension::Fixed(15));
+
+        auto render_combined = [&]() {
+            ftxui::Elements headers;
+            for (int i = 0; i < 5; ++i)
+                headers.push_back(ftxui::text("Header " + std::to_string(i)));
+            auto combined = ftxui::vbox({
+                ftxui::vbox(std::move(headers)),
+                ftxui::separator(),
+                comp->Render(),
+            });
+            return markdown::direct_scroll(
+                std::move(combined), viewer.scroll(), &ext_si);
+        };
+
+        ftxui::Render(screen, render_combined());
+        ASSERT_TRUE(!viewer.active());
+
+        // Parent sets scroll directly (simulating parent's arrow handler)
+        viewer.set_scroll(0.5f);
+        ASSERT_TRUE(approx(viewer.scroll(), 0.5f));
+    }
+
     return 0;
 }

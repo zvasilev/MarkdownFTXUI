@@ -62,12 +62,18 @@ public:
     int focused_index() const { return _focus_index; }
     std::string focused_value() const;
 
-    // Embed mode: skip internal yframe/vscroll/flex so the caller can
+    // Embed mode: skip internal scroll/vscroll/flex so the caller can
     // wrap the viewer element together with other content in a single frame.
+    // The caller should pass a pointer to its ScrollInfo via
+    // set_external_scroll_info() so scroll_to_focus() reads live dimensions.
     void set_embed(bool embed) { _embed = embed; }
     bool is_embed() const { return _embed; }
     float scroll() const { return _scroll_ratio; }
     ScrollInfo const& scroll_info() const { return _scroll_info; }
+    /// Point to the parent's ScrollInfo (filled by parent's direct_scroll
+    /// during layout). scroll_to_focus() reads this instead of _scroll_info
+    /// when set, avoiding stale-copy timing issues in embed mode.
+    void set_external_scroll_info(ScrollInfo* si) { _ext_scroll_info = si; }
     bool scrollbar_visible() const { return _show_scrollbar; }
     Theme const& theme() const { return _theme; }
     bool is_link_focused() const;
@@ -103,6 +109,7 @@ private:
     ViewerKeys _keys;
     ftxui::Component _component;
     bool _embed = false;
+    ScrollInfo* _ext_scroll_info = nullptr;
 };
 
 } // namespace markdown
