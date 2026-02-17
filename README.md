@@ -13,7 +13,7 @@ A C++ library for rendering and editing Markdown directly in the terminal. Built
 - **Editor** with lexical syntax highlighting, line numbers, and cursor tracking
 - **Viewer** with semantic Markdown rendering (bold, italic, headings, links, lists, code, quotes)
 - **Link navigation** via Tab/Shift+Tab with Enter to activate
-- **External focusable items** for integrating non-Markdown elements (e.g. email headers) into the Tab ring
+- **Tab focus integration** with parent components via `on_tab_exit`/`enter_focus` callbacks
 - **Three built-in themes** (Default, High Contrast, Colorful) with custom theme support
 - **Scrollable content** with scrollbar indicator, mouse wheel, PageUp/PageDown, Home/End, and ratio-based scroll control
 - **UTF-8 and CJK support** with correct wide character handling
@@ -119,7 +119,7 @@ Three demo screens:
 |--------|-------------|
 | Editor + Viewer | Side-by-side editing with live preview and cursor-synced scroll |
 | Viewer with Scroll | Full-screen viewer with scrollbar and Tab-based link navigation |
-| Email Viewer | Simulated email with header fields in the Tab ring (external focusables) |
+| Email Viewer | Simulated email with parent-managed header fields and Tab integration |
 
 See [docs/demos.md](docs/demos.md) for screen layouts, code patterns, and keyboard reference.
 
@@ -129,7 +129,7 @@ See [docs/demos.md](docs/demos.md) for screen layouts, code patterns, and keyboa
 |--------|---------|
 | `ast.hpp` | `NodeType` enum, `ASTNode` struct, `MarkdownAST` type alias |
 | `parser.hpp` | `MarkdownParser` interface, `make_cmark_parser()` factory |
-| `viewer.hpp` | `Viewer` class, `LinkEvent`, `ExternalFocusable` |
+| `viewer.hpp` | `Viewer` class, `LinkEvent`, `on_tab_exit`/`enter_focus` |
 | `editor.hpp` | `Editor` class with cursor tracking and syntax highlighting |
 | `dom_builder.hpp` | `DomBuilder` class, `LinkTarget` struct |
 | `highlight.hpp` | `highlight_markdown_syntax()`, `highlight_markdown_with_cursor()` |

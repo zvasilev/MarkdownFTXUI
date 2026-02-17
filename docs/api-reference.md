@@ -141,16 +141,6 @@ enum class LinkEvent {
 };
 ```
 
-### ExternalFocusable (struct)
-
-```cpp
-struct ExternalFocusable {
-    std::string label;  // Display label (e.g. "From")
-    std::string value;  // Associated value (e.g. "alice@example.com")
-};
-```
-
-External focusable items appear before links in the Tab ring. When focused, the `on_link_click` callback fires with the item's `value`.
 
 ### Viewer (class)
 
@@ -199,12 +189,27 @@ The built-in component handles scrolling via keyboard and mouse:
 #### Link Interaction
 
 ```cpp
-    // Register a callback for link/external focus and press events.
-    // The callback receives the URL (for links) or value (for externals)
-    // and the event type (Focus or Press).
+    // Register a callback for link focus and press events.
+    // The callback receives the link URL and the event type (Focus or Press).
     void on_link_click(
         std::function<void(std::string const&, LinkEvent)> callback);
 ```
+
+#### Tab Focus Integration
+
+```cpp
+    // When set, Tab past last link calls cb(+1), Shift+Tab before first calls cb(-1).
+    // The viewer clears its focus and deactivates. If not set, Tab wraps (default).
+    void on_tab_exit(std::function<void(int direction)> callback);
+
+    // Parent calls this to give the viewer link focus from a direction.
+    // direction > 0: focus first link; direction < 0: focus last link.
+    // Returns true if focus was accepted (there are links), false otherwise.
+    // Sets active(true) and fires on_link_click with LinkEvent::Focus.
+    bool enter_focus(int direction);
+```
+
+These two methods enable Tab cycling between parent UI elements and viewer links. The parent intercepts Tab when the viewer is not active, calls `enter_focus()` to hand off, and receives control back via the `on_tab_exit` callback. If no callback is set, Tab wraps through links as before.
 
 #### Theming
 
@@ -232,36 +237,16 @@ The built-in component handles scrolling via keyboard and mouse:
     void set_active(bool a);
 ```
 
-#### External Focusables
-
-```cpp
-    // Add an external focusable item to the Tab ring.
-    void add_focusable(std::string label, std::string value);
-
-    // Remove all external focusable items and reset focus index.
-    void clear_focusables();
-
-    // Get the list of registered externals.
-    std::vector<ExternalFocusable> const& externals() const;
-```
-
 #### Focus Tracking
 
 ```cpp
-    // Unified focus index across externals and links:
-    //   -1          = nothing focused
-    //   0..N-1      = external item index
-    //   N..N+M-1    = link index (where N = externals count, M = link count)
+    // Focus index into link_targets: -1 = nothing focused, 0..N-1 = link index.
     int focused_index() const;
 
-    // True if external item at the given index has focus.
-    bool is_external_focused(int external_index) const;
-
-    // Value of the currently focused item (external value or link URL).
-    // Returns empty string if nothing is focused.
+    // URL of the currently focused link. Empty string if nothing is focused.
     std::string focused_value() const;
 
-    // True if a link (not an external) is focused.
+    // True if any link is focused.
     bool is_link_focused() const;
 ```
 
@@ -303,26 +288,27 @@ int main() {
 }
 ```
 
-### Example: Viewer with External Focusables
+### Example: Tab Integration with Parent
 
 ```cpp
 auto viewer = std::make_shared<markdown::Viewer>(
     markdown::make_cmark_parser());
 
 viewer->set_content("Check the [docs](https://docs.example.com).");
-viewer->add_focusable("From", "alice@example.com");
-viewer->add_focusable("To", "bob@example.com");
 
-viewer->on_link_click([](std::string const& value, markdown::LinkEvent ev) {
-    // value is "alice@example.com", "bob@example.com", or the link URL
-    // depending on which item is focused/pressed.
+// Viewer calls back when Tab exits past bounds
+viewer->on_tab_exit([&](int direction) {
+    // direction +1: Tab past last link → move focus to next parent element
+    // direction -1: Shift+Tab past first link → move to previous parent element
 });
 
-// In renderer, check which external is focused:
-for (int i = 0; i < viewer->externals().size(); ++i) {
-    if (viewer->is_external_focused(i)) {
-        // Highlight this header
-    }
+// Parent hands off Tab focus to the viewer
+viewer->enter_focus(+1);  // focus first link
+viewer->enter_focus(-1);  // focus last link
+
+// In the parent's event handler:
+if (event == ftxui::Event::Tab && !viewer->active()) {
+    viewer->enter_focus(+1);  // give viewer Tab focus
 }
 ```
 

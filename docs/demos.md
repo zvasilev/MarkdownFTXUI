@@ -1,6 +1,6 @@
 # Demo Application
 
-The demo application showcases all three usage patterns of MarkdownFTXUI: a side-by-side editor with live preview, a standalone scrollable viewer, and an email viewer with external focusable headers.
+The demo application showcases all three usage patterns of MarkdownFTXUI: a side-by-side editor with live preview, a standalone scrollable viewer, and an email viewer with parent-managed Tab integration.
 
 ## Building and Running
 
@@ -190,11 +190,11 @@ A simulated email view combining header fields and a Markdown body in a single s
 
 ### Features
 
-- **External focusable headers**: Four header fields (From, To, Subject, Date) are registered as external focusable items. They appear before links in the Tab ring.
+- **Parent-managed header focus**: Four header fields (From, To, Subject, Date) are managed by the parent component. The parent tracks which header is focused and renders brackets accordingly.
+- **Tab integration**: The parent uses `on_tab_exit`/`enter_focus` to cycle Tab between headers and viewer links. Tab flows: headers → links → back to headers.
 - **Bracket highlighting**: The currently focused header is wrapped in `[brackets]`, others have padding spaces for alignment.
 - **Embed mode**: The viewer operates in embed mode (`set_embed(true)`), meaning it does not create its own scroll frame. Instead, headers and body are combined in a single `vbox` wrapped in one `direct_scroll`/`yframe`.
 - **Unified scroll**: A single scrollbar covers both headers and body content.
-- **Link support**: Links in the Markdown body are part of the same Tab ring as headers.
 
 ### Key Code Pattern
 
@@ -204,16 +204,21 @@ auto viewer = std::make_shared<markdown::Viewer>(
 viewer->set_content(email_body);
 viewer->set_embed(true);  // Skip internal framing
 
-// Register email headers as external focusables
-viewer->add_focusable("From", "Alice <alice@example.com>");
-viewer->add_focusable("To", "team@example.com");
-viewer->add_focusable("Subject", "Sprint Review Notes - Week 42");
-viewer->add_focusable("Date", "Fri, 7 Feb 2026 15:30:00 +0200");
+int header_focus = -1;  // Parent tracks focused header
 
-// In the Renderer:
-for (int i = 0; i < viewer->externals().size(); ++i) {
-    if (viewer->is_external_focused(i)) {
-        // Render with [brackets]
+// When viewer Tab-exits, move focus back to headers
+viewer->on_tab_exit([&](int direction) {
+    header_focus = (direction > 0) ? 0 : num_headers - 1;
+});
+
+// In the parent's event handler:
+if (event == Tab && !viewer->active()) {
+    int next = header_focus + 1;
+    if (next >= num_headers) {
+        header_focus = -1;
+        viewer->enter_focus(+1);  // hand off to viewer
+    } else {
+        header_focus = next;
     }
 }
 
@@ -268,4 +273,4 @@ else
 | `demo/common.hpp` | Shared utilities (ZeroMinWidth, get_theme, theme_bar) |
 | `demo/screen_editor.cpp` | Screen 1: Editor + Viewer side-by-side |
 | `demo/screen_viewer.cpp` | Screen 2: Standalone viewer with scrollbar |
-| `demo/screen_email.cpp` | Screen 3: Email viewer with external focusables |
+| `demo/screen_email.cpp` | Screen 3: Email viewer with Tab integration |

@@ -122,25 +122,23 @@ The highest-level component. It owns a parser and DomBuilder internally, exposes
 - **Content management**: `set_content()` updates the Markdown text
 - **Scroll control**: `set_scroll(ratio)` for linear offset, yframe for link focus
 - **Link navigation**: Tab/Shift+Tab cycle through links, Enter activates
-- **External focusables**: Header fields (like email From/To) in the Tab ring
+- **Tab integration**: `on_tab_exit`/`enter_focus` for parent↔viewer Tab cycling
 - **Theming**: `set_theme()` changes visual style
 
-Internally, the Viewer wraps its renderer in a `ViewerWrap` component that handles all keyboard/mouse events. ViewerWrap operates in two modes:
+Internally, the Viewer wraps its renderer in a `ViewerWrap` component that handles all keyboard/mouse events:
 
 ```
   ViewerWrap
-  ├── Normal mode (no externals registered)
-  │   ├── Enter → activate (enable link navigation)
-  │   ├── Esc → deactivate
-  │   ├── Tab/Shift+Tab → cycle links (only when active)
-  │   └── Arrows → scroll
-  │
-  └── Tab ring mode (externals registered)
-      ├── Tab/Shift+Tab → cycle ALL items (externals + links)
-      ├── Enter → press focused item
-      ├── Esc → clear focus, return false (parent handles)
-      └── Arrows → scroll
+  ├── Enter → activate (enable link navigation)
+  ├── Esc → deactivate
+  ├── Tab/Shift+Tab → cycle links (only when active)
+  │   ├── on_tab_exit set → exit instead of wrapping
+  │   └── no callback → wrap around (default)
+  ├── Enter (when link focused) → press link
+  └── Arrows → scroll
 ```
+
+The parent can also activate the viewer via `enter_focus(direction)`, which sets the viewer active and focuses the first or last link. When Tab goes past the bounds and `on_tab_exit` is set, the viewer clears focus, deactivates, and calls the callback so the parent can move focus to its own elements.
 
 ### Editor (`editor.hpp`, `editor.cpp`)
 

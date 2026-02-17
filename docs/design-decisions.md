@@ -152,29 +152,22 @@ for (int i = 0; i < link_count; ++i) {
 
 This is documented here because anyone extending DomBuilder with new reflectable elements must follow the same pattern.
 
-## 9. External Focusable Tab Ring
+## 9. Tab Focus Integration
 
-The Viewer's ViewerWrap component operates in two distinct modes:
+The Viewer supports integration with parent component Tab cycling via two callbacks:
 
-**Normal mode** (no external focusables registered):
-- Enter activates link navigation
-- Tab/Shift+Tab cycle links only when active
-- Esc deactivates
-- Arrow keys scroll
+- **`on_tab_exit(cb)`** -- called when Tab would wrap past the last link (`cb(+1)`) or Shift+Tab before the first (`cb(-1)`). The viewer clears its focus and deactivates.
+- **`enter_focus(direction)`** -- the parent calls this to give the viewer link focus. Returns `true` if there are links to focus, `false` otherwise.
 
-**Tab ring mode** (externals registered):
-- Tab/Shift+Tab always cycle the full ring (externals + links)
-- No Enter-to-activate gate needed
-- Esc clears focus and returns `false` (lets parent handle)
-- Arrow keys scroll
+If `on_tab_exit` is not set, Tab wraps through links as before (backward compatible).
 
 **Rationale:**
 
-The two-mode design preserves backward compatibility. Screens that don't register externals (like the Editor+Viewer demo and standalone Viewer demo) behave exactly as before. The email screen, which registers four header fields, automatically gets the enhanced Tab ring behavior.
+An earlier design embedded parent items directly into the viewer's Tab ring via an `ExternalFocusable` API (`add_focusable("From", "alice@example.com")`). This was limiting because the "external" items were just data strings, not real FTXUI components. The parent had to poll the viewer's focus state to render them.
 
-The `cycle_focus()` function handles the starting case specially: when `_focus_index == -1` (nothing focused), Tab goes to index 0 and Shift+Tab goes to the last item. The modular arithmetic `(index + direction + total) % total` is only used for subsequent cycles. An earlier version used modular arithmetic for the starting case too, which produced wrong results (`(-1 + -1 + 2) % 2 = 0` instead of the expected `1`).
+The callback approach inverts control: the parent owns its own focusable elements and manages them with real component logic. The viewer is just one element in the parent's focus chain. This is more composable -- any parent with any number of components can integrate with the viewer without the viewer knowing anything about the parent's structure.
 
-When focusing an external item, the scroll ratio is reset to 0.0 so that the email headers (rendered above the body) are visible. Without this, pressing Tab after scrolling down would change the focused header brackets, but the user couldn't see the change because headers were above the viewport.
+The `cycle_focus()` function handles the starting case specially: when `_focus_index == -1` (nothing focused), Tab goes to index 0 and Shift+Tab goes to the last item. When `on_tab_exit` is set and Tab would advance past the bounds, the viewer exits instead of wrapping.
 
 ## 10. Theme System Design
 
@@ -204,7 +197,7 @@ The original project plan specified a focused scope: headings, bold, italic, lin
 - **Editor line numbers** gutter with configurable display
 - **Editor status bar** (Ln/Col tracking)
 - **Three built-in themes** (originally only one was planned)
-- **External focusable items** in the viewer's Tab ring
+- **Tab focus integration** via `on_tab_exit`/`enter_focus` callbacks
 - **Embed mode** for combining viewer content with other UI elements
 - **CMake install targets** with `find_package` support
 

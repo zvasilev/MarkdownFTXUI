@@ -114,7 +114,7 @@ Tests are grouped in blocks within `main()`. Each block is independent and can b
 |-----------|---------------|
 | `test_viewer.cpp` | `Viewer` class: content setting, rendering, scroll control, link callback, active/inactive state. |
 | `test_dom_focus.cpp` | `DomBuilder` link focus highlighting: focused link gets inverted style, unfocused links get underlined only. |
-| `test_external_focusable.cpp` | External focusable API: `add_focusable()`, `clear_focusables()`, Tab ring cycling, `focused_value()`, `is_external_focused()`, Enter press events, Escape reset. |
+| `test_tab_exit.cpp` | Tab focus integration: `on_tab_exit` forward/backward exit, `enter_focus` activation, round-trip cycling, Escape behavior, backward compatibility (no callback = wrap). |
 | `test_scroll_frame.cpp` | `DirectScrollFrame`: ratio 0 (top), ratio 0.5 (middle), ratio 1 (bottom), clamping, empty content, stencil clipping. |
 
 ### Theme Tests
