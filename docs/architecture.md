@@ -121,20 +121,21 @@ The highest-level component. It owns a parser and DomBuilder internally, exposes
 
 - **Content management**: `set_content()` updates the Markdown text
 - **Scroll control**: `set_scroll(ratio)` for linear offset, yframe for link focus
-- **Link navigation**: Tab/Shift+Tab cycle through links, Enter activates
-- **Tab integration**: `on_tab_exit`/`enter_focus` for parent↔viewer Tab cycling
+- **Link navigation**: configurable next/prev keys cycle through links, activate key presses
+- **Tab integration**: `on_tab_exit`/`enter_focus` for parent↔viewer focus cycling
+- **Configurable keys**: `set_keys(ViewerKeys)` overrides activate, deactivate, next, prev
 - **Theming**: `set_theme()` changes visual style
 
 Internally, the Viewer wraps its renderer in a `ViewerWrap` component that handles all keyboard/mouse events:
 
 ```
-  ViewerWrap
-  ├── Enter → activate (enable link navigation)
-  ├── Esc → deactivate
-  ├── Tab/Shift+Tab → cycle links (only when active)
+  ViewerWrap (keys are configurable via ViewerKeys)
+  ├── keys.activate → activate (enable link navigation) [default: Enter]
+  ├── keys.deactivate → deactivate                      [default: Esc]
+  ├── keys.next/prev → cycle links (only when active)   [default: Tab/Shift+Tab]
   │   ├── on_tab_exit set → exit instead of wrapping
   │   └── no callback → wrap around (default)
-  ├── Enter (when link focused) → press link
+  ├── keys.activate (when link focused) → press link
   └── Arrows → scroll
 ```
 

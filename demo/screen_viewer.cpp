@@ -85,8 +85,8 @@ ftxui::Component make_viewer_screen(
         [=, &theme_index](ftxui::Event ev) {
             // Tab/Shift+Tab: auto-activate viewer for link cycling
             if (!viewer->active() &&
-                (ev == ftxui::Event::Tab ||
-                 ev == ftxui::Event::TabReverse)) {
+                (ev == viewer->keys().next ||
+                 ev == viewer->keys().prev)) {
                 viewer->set_active(true);
                 return false;
             }
@@ -152,7 +152,7 @@ ftxui::Component make_viewer_screen(
 
     return ftxui::CatchEvent(screen,
         [=, &current_screen](ftxui::Event ev) {
-            if (ev == ftxui::Event::Escape) {
+            if (ev == viewer->keys().deactivate) {
                 if (viewer->active()) return false;
                 current_screen = 0;
                 return true;

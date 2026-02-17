@@ -211,8 +211,8 @@ viewer->on_tab_exit([&](int direction) {
     header_focus = (direction > 0) ? 0 : num_headers - 1;
 });
 
-// In the parent's event handler:
-if (event == Tab && !viewer->active()) {
+// In the parent's event handler (use viewer->keys() for consistency):
+if (event == viewer->keys().next && !viewer->active()) {
     int next = header_focus + 1;
     if (next >= num_headers) {
         header_focus = -1;

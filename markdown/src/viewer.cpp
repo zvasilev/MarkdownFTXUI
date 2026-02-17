@@ -74,17 +74,20 @@ class ViewerWrap : public ftxui::ComponentBase {
     DomBuilder& _builder;
     std::function<void(std::string const&, LinkEvent)>& _link_callback;
     std::function<void(int)>& _tab_exit_callback;
+    ViewerKeys const& _keys;
     ScrollInfo const& _scroll_info;
 public:
     ViewerWrap(ftxui::Component child, bool& active, float& scroll,
                int& focus_index, DomBuilder& builder,
                std::function<void(std::string const&, LinkEvent)>& link_cb,
                std::function<void(int)>& tab_exit_cb,
+               ViewerKeys const& keys,
                ScrollInfo const& scroll_info)
         : _active(active), _scroll_ratio(scroll),
           _focus_index(focus_index), _builder(builder),
           _link_callback(link_cb),
           _tab_exit_callback(tab_exit_cb),
+          _keys(keys),
           _scroll_info(scroll_info) {
         Add(std::move(child));
     }
@@ -108,20 +111,20 @@ public:
         }
 
         if (_active) {
-            if (event == ftxui::Event::Escape) {
+            if (event == _keys.deactivate) {
                 _active = false;
                 _focus_index = -1;
                 return true;
             }
-            if (event == ftxui::Event::Tab) {
+            if (event == _keys.next) {
                 cycle_focus(+1);
                 return true;
             }
-            if (event == ftxui::Event::TabReverse) {
+            if (event == _keys.prev) {
                 cycle_focus(-1);
                 return true;
             }
-            if (event == ftxui::Event::Return) {
+            if (event == _keys.activate) {
                 if (_focus_index >= 0) {
                     notify_focus(LinkEvent::Press);
                     return true;
@@ -142,7 +145,7 @@ public:
                 return scroll_by(1.0f - _scroll_ratio);
             return false;
         }
-        if (event == ftxui::Event::Return) {
+        if (event == _keys.activate) {
             _active = true;
             return true;
         }
@@ -279,7 +282,7 @@ ftxui::Component Viewer::component() {
     _component = std::make_shared<ViewerWrap>(
         inner, _active, _scroll_ratio, _focus_index,
         _builder, _link_callback, _tab_exit_callback,
-        _scroll_info);
+        _keys, _scroll_info);
     return _component;
 }
 

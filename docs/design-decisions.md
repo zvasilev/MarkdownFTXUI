@@ -169,7 +169,26 @@ The callback approach inverts control: the parent owns its own focusable element
 
 The `cycle_focus()` function handles the starting case specially: when `_focus_index == -1` (nothing focused), Tab goes to index 0 and Shift+Tab goes to the last item. When `on_tab_exit` is set and Tab would advance past the bounds, the viewer exits instead of wrapping.
 
-## 10. Theme System Design
+## 10. Configurable Key Bindings
+
+The Viewer's key bindings (activate, deactivate, next, prev) are configurable via the `ViewerKeys` struct rather than hardcoded to Enter/Escape/Tab/Shift+Tab.
+
+```cpp
+markdown::ViewerKeys keys;
+keys.activate   = ftxui::Event::Return;      // default
+keys.deactivate = ftxui::Event::Escape;       // default
+keys.next       = ftxui::Event::Tab;          // default
+keys.prev       = ftxui::Event::TabReverse;   // default
+viewer->set_keys(keys);
+```
+
+**Rationale:**
+
+Different host applications have different key conventions. An email client might use `j`/`k` for navigation instead of Tab. A Vim-style application might use `i`/`Esc` for mode switching. Hardcoded keys force consumers to wrap the viewer in a key-remapping layer, which is fragile and error-prone.
+
+The `keys()` accessor serves a second purpose: parent components that intercept events for Tab integration (`on_tab_exit`/`enter_focus`) should reference `viewer->keys().next` and `viewer->keys().deactivate` instead of `ftxui::Event::Tab` and `ftxui::Event::Escape`. This way, if the consumer customizes the keys, parent event handlers automatically stay in sync.
+
+## 11. Theme System Design
 
 Themes are `ftxui::Decorator` values (which are `std::function<Element(Element)>`), not enum-based style selectors.
 
@@ -184,7 +203,7 @@ The three built-in themes demonstrate different approaches:
 
 Custom themes can use any FTXUI decorator, including `bgcolor()`, `dim`, or custom decorators.
 
-## 11. Features Beyond the Original Plan
+## 12. Features Beyond the Original Plan
 
 The original project plan specified a focused scope: headings, bold, italic, links, unordered lists, inline code, blockquotes, and an editor with lexical highlighting. During development, several additional features were added:
 
@@ -198,7 +217,8 @@ The original project plan specified a focused scope: headings, bold, italic, lin
 - **Editor status bar** (Ln/Col tracking)
 - **Three built-in themes** (originally only one was planned)
 - **Tab focus integration** via `on_tab_exit`/`enter_focus` callbacks
+- **Configurable key bindings** via `ViewerKeys` struct
 - **Embed mode** for combining viewer content with other UI elements
 - **CMake install targets** with `find_package` support
 
-These additions were motivated by the demo application's needs. The email screen in particular drove the external focusable and embed mode features.
+These additions were motivated by the demo application's needs. The email screen in particular drove the tab focus integration and embed mode features.

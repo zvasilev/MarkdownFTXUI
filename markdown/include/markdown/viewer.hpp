@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include <ftxui/component/component.hpp>
+#include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 
 #include "markdown/dom_builder.hpp"
@@ -15,6 +16,15 @@
 namespace markdown {
 
 enum class LinkEvent { Focus, Press };
+
+/// Key bindings for viewer interaction.
+/// Override any field to change the corresponding key.
+struct ViewerKeys {
+    ftxui::Event activate   = ftxui::Event::Return;
+    ftxui::Event deactivate = ftxui::Event::Escape;
+    ftxui::Event next       = ftxui::Event::Tab;
+    ftxui::Event prev       = ftxui::Event::TabReverse;
+};
 
 class Viewer {
 public:
@@ -29,6 +39,8 @@ public:
         std::function<void(std::string const&, LinkEvent)> callback);
     void on_tab_exit(std::function<void(int direction)> callback);
     bool enter_focus(int direction);
+    void set_keys(ViewerKeys const& keys) { _keys = keys; }
+    ViewerKeys const& keys() const { return _keys; }
     void set_theme(Theme const& theme) {
         if (_theme.name != theme.name) { _theme = theme; ++_theme_gen; }
     }
@@ -83,6 +95,7 @@ private:
     uint64_t _built_builder_gen = 0;
     std::function<void(std::string const&, LinkEvent)> _link_callback;
     std::function<void(int direction)> _tab_exit_callback;
+    ViewerKeys _keys;
     ftxui::Component _component;
     bool _embed = false;
 };

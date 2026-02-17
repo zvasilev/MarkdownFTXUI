@@ -142,6 +142,19 @@ enum class LinkEvent {
 ```
 
 
+### ViewerKeys (struct)
+
+```cpp
+struct ViewerKeys {
+    ftxui::Event activate   = ftxui::Event::Return;      // Enter edit/link-press mode
+    ftxui::Event deactivate = ftxui::Event::Escape;       // Exit active mode
+    ftxui::Event next       = ftxui::Event::Tab;          // Cycle forward through links
+    ftxui::Event prev       = ftxui::Event::TabReverse;   // Cycle backward through links
+};
+```
+
+Configurable key bindings for viewer interaction. Override any field to change the corresponding key. Default values match the standard terminal conventions.
+
 ### Viewer (class)
 
 ```cpp
@@ -210,6 +223,18 @@ The built-in component handles scrolling via keyboard and mouse:
 ```
 
 These two methods enable Tab cycling between parent UI elements and viewer links. The parent intercepts Tab when the viewer is not active, calls `enter_focus()` to hand off, and receives control back via the `on_tab_exit` callback. If no callback is set, Tab wraps through links as before.
+
+#### Key Bindings
+
+```cpp
+    // Override the default key bindings (Enter, Esc, Tab, Shift+Tab).
+    void set_keys(ViewerKeys const& keys);
+
+    // Query the current key bindings (useful for parent event handlers).
+    ViewerKeys const& keys() const;
+```
+
+The `keys()` accessor lets parent components reference the same keys the viewer uses internally, so event checks stay consistent even when keys are customized.
 
 #### Theming
 
@@ -306,10 +331,16 @@ viewer->on_tab_exit([&](int direction) {
 viewer->enter_focus(+1);  // focus first link
 viewer->enter_focus(-1);  // focus last link
 
-// In the parent's event handler:
-if (event == ftxui::Event::Tab && !viewer->active()) {
+// In the parent's event handler, use viewer->keys() for consistency:
+if (event == viewer->keys().next && !viewer->active()) {
     viewer->enter_focus(+1);  // give viewer Tab focus
 }
+
+// Optionally override keys before creating the component:
+markdown::ViewerKeys keys;
+keys.next = ftxui::Event::Character('n');
+keys.prev = ftxui::Event::Character('p');
+viewer->set_keys(keys);
 ```
 
 ---

@@ -1,6 +1,7 @@
 #include "screens.hpp"
 #include "common.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -95,11 +96,11 @@ ftxui::Component make_email_screen(
 
     auto with_keys = ftxui::CatchEvent(viewer_comp,
         [=, &theme_index](ftxui::Event ev) {
-            if (ev == ftxui::Event::Tab || ev == ftxui::Event::TabReverse) {
+            if (ev == viewer->keys().next || ev == viewer->keys().prev) {
                 if (viewer->active()) {
                     return false;  // let viewer handle link cycling
                 }
-                int dir = (ev == ftxui::Event::Tab) ? 1 : -1;
+                int dir = (ev == viewer->keys().next) ? 1 : -1;
                 if (*header_focus < 0) {
                     *header_focus = (dir > 0) ? 0 : num_headers - 1;
                 } else {
@@ -131,6 +132,23 @@ ftxui::Component make_email_screen(
             if (ev == ftxui::Event::ArrowRight) {
                 theme_index = (theme_index + 1) % 3;
                 return true;
+            }
+            // Scroll when viewer is not active (header browsing)
+            if (!viewer->active()) {
+                constexpr float kStep = 0.05f;
+                auto adjust = [&](float delta) {
+                    float s = std::clamp(viewer->scroll() + delta, 0.0f, 1.0f);
+                    viewer->set_scroll(s);
+                    return true;
+                };
+                if (ev == ftxui::Event::ArrowDown) return adjust(kStep);
+                if (ev == ftxui::Event::ArrowUp) return adjust(-kStep);
+                if (ev == ftxui::Event::PageDown) return adjust(0.3f);
+                if (ev == ftxui::Event::PageUp) return adjust(-0.3f);
+                if (ev == ftxui::Event::Home)
+                    return adjust(-viewer->scroll());
+                if (ev == ftxui::Event::End)
+                    return adjust(1.0f - viewer->scroll());
             }
             return false;
         });
@@ -195,7 +213,7 @@ ftxui::Component make_email_screen(
 
     return ftxui::CatchEvent(screen,
         [=, &current_screen](ftxui::Event ev) {
-            if (ev == ftxui::Event::Escape) {
+            if (ev == viewer->keys().deactivate) {
                 if (viewer->active()) return false;
                 current_screen = 0;
                 return true;
