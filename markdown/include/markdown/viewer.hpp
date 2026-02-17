@@ -56,7 +56,7 @@ public:
     /// However, do not move this object after calling component().
     ftxui::Component component();
     bool active() const { return _active; }
-    void set_active(bool a) { _active = a; }
+    void set_active(bool a) { _active = a; if (!a) _focus_index = -1; }
 
     // Focus index into link_targets: -1=none, 0..N-1=links.
     int focused_index() const { return _focus_index; }
