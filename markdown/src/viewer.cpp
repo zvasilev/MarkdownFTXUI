@@ -292,6 +292,8 @@ ftxui::Component Viewer::component() {
         // during layout), so coordinates are always current.
         for (auto const& fb : _builder.flat_link_boxes()) {
             if (fb.box->Contain(mouse.x, mouse.y)) {
+                _focus_index = fb.link_index;
+                _active = true;
                 auto const& link = _builder.link_targets()[fb.link_index];
                 if (_link_callback) {
                     _link_callback(link.url, LinkEvent::Press);
